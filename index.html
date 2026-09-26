@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#00b140">
+<title>VTuber Multi-Modelo</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #00b140;
+    color: #fff;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    background: var(--bg-color, #00b140);
+    transition: background 0.3s;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #top-bar {
+    flex-shrink: 0;
+    padding: 8px 10px 8px;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    z-index: 10;
+  }
+
+  #character-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .character-btn {
+    flex: 1;
+    padding: 11px 0;
+    font-size: 14px;
+    font-weight: 700;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .character-btn.active {
+    background: #fff;
+    color: #00b140;
+    border-color: #fff;
+  }
+  #btn-settings {
+    flex-shrink: 0;
+    width: 52px;
+    font-size: 22px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    cursor: pointer;
+    line-height: 1;
+  }
+  #btn-settings:active { background: rgba(255,255,255,0.28); }
+
+  /* Fila audio: cargar + controles */
+  #audio-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    align-items: stretch;
+  }
+  #audio-row .audio-btn {
+    flex: 1;
+    padding: 9px 0;
+    font-size: 14px;
+    font-weight: 700;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #audio-row .audio-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  #btn-audio-load.active {
+    background: #60a5fa;
+    border-color: #fff;
+  }
+
+  /* Barra de progreso del audio */
+  #audio-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 0 2px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255,255,255,0.85);
+  }
+  #audio-progress {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+  }
+  #audio-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #60a5fa, #4ade80);
+    transition: width 0.1s linear;
+    pointer-events: none;
+  }
+  #audio-progress-row.disabled { opacity: 0.35; }
+  #audio-progress-row.disabled #audio-progress { cursor: not-allowed; }
+  #audio-cur, #audio-dur { min-width: 34px; text-align: center; }
+
+  /* Fila formas */
+  #form-buttons {
+    display: flex;
+    gap: 5px;
+  }
+  .form-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 2px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .form-btn.active {
+    background: rgba(255,255,255,0.9);
+    color: #00b140;
+    border-color: #fff;
+  }
+  .form-btn .dot {
+    position: absolute;
+    top: 3px; right: 4px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    display: none;
+  }
+  .form-btn.has-content .dot { display: block; }
+
+  #stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+  }
+  #avatar-wrapper {
+    will-change: transform;
+    transform: translate3d(0,0,0);
+  }
+  #avatar-image {
+    max-width: 88vw;
+    max-height: 62vh;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+  }
+
+  #settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    z-index: 200;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  #settings-overlay.open { display: flex; }
+
+  #settings-sheet {
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    max-height: 88dvh;
+    background: #1f2937;
+    color: #fff;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    padding: 14px 18px 26px;
+    padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    animation: slideDown 0.22s ease-out;
+  }
+  @keyframes slideDown {
+    from { transform: translateY(-30px); opacity: 0.5; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
+
+  #settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    position: sticky;
+    top: -14px;
+    background: #1f2937;
+    padding: 8px 0;
+    z-index: 1;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  #settings-header h2 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 700;
+  }
+  #btn-close-settings {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.6;
+    margin: 16px 0 8px;
+    font-weight: 700;
+  }
+
+  .control { margin-bottom: 12px; }
+  .control label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 3px;
+    opacity: 0.95;
+  }
+  .control input[type="range"] {
+    width: 100%;
+    height: 26px;
+    -webkit-appearance: none;
+    background: transparent;
+  }
+  .control input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 3px;
+  }
+  .control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    margin-top: -9px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .color-row { display: flex; align-items: center; gap: 10px; }
+  .color-row input[type="color"] {
+    width: 48px; height: 34px;
+    border: none; border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    flex: 1;
+    min-width: 130px;
+    padding: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    background: #4ade80;
+    color: #0f172a;
+    cursor: pointer;
+  }
+  .action-btn.rec { background: #f87171; color: #fff; }
+  .action-btn.danger { background: #dc2626; color: #fff; }
+  .action-btn.secondary {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  .permission-box {
+    background: rgba(255,80,80,0.2);
+    border: 1px solid rgba(255,120,120,0.6);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    display: none;
+  }
+  .permission-box.visible { display: block; }
+  .permission-box strong { display: block; margin-bottom: 6px; font-size: 13px; }
+  .permission-box ol { margin: 6px 0 8px 18px; padding: 0; }
+  .permission-box li { margin-bottom: 4px; }
+  .permission-box button {
+    background: #fff;
+    color: #0f172a;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 6px;
+  }
+
+  #mic-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  #mic-level {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4ade80, #facc15, #f87171);
+    transition: width 0.05s;
+  }
+
+  #hint {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.78);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    text-align: center;
+    max-width: 90vw;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 100;
+  }
+  #hint.show { opacity: 1; }
+
+  .thumb-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .thumb {
+    aspect-ratio: 1;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb.filled { border-color: #4ade80; }
+  .thumb.from-github { border-color: #60a5fa; }
+  .thumb .label {
+    position: absolute;
+    bottom: 2px; left: 2px;
+    font-size: 9px;
+    background: rgba(0,0,0,0.7);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .thumb input { display: none; }
+
+  #storage-info {
+    font-size: 11px;
+    opacity: 0.75;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .legend {
+    font-size: 10px;
+    opacity: 0.65;
+    margin-top: 4px;
+  }
+  .legend span { display: inline-block; margin-right: 10px; }
+  .legend .c1 { color: #60a5fa; }
+  .legend .c2 { color: #4ade80; }
+
+  #audio-info {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 4px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="top-bar">
+    <div id="character-row">
+      <button class="character-btn active" data-char="sentado">Sentado</button>
+      <button class="character-btn" data-char="parado">Parado</button>
+      <button id="btn-settings" title="Ajustes">⚙️</button>
+    </div>
+
+    <!-- Fila audio: cargar + play/pausa/stop -->
+    <div id="audio-row">
+      <button class="audio-btn" id="btn-audio-load" title="Cargar audio">🎵</button>
+      <button class="audio-btn" id="btn-audio-play" disabled title="Play">▶</button>
+      <button class="audio-btn" id="btn-audio-pause" disabled title="Pausa">⏸</button>
+      <button class="audio-btn" id="btn-audio-stop" disabled title="Stop">⏹</button>
+    </div>
+
+    <!-- Barra de progreso -->
+    <div id="audio-progress-row" class="disabled">
+      <span id="audio-cur">0:00</span>
+      <div id="audio-progress">
+        <div id="audio-progress-fill"></div>
+      </div>
+      <span id="audio-dur">0:00</span>
+    </div>
+
+    <div id="form-buttons">
+      <button class="form-btn active" data-form="1">F1<span class="dot"></span></button>
+      <button class="form-btn" data-form="2">F2<span class="dot"></span></button>
+      <button class="form-btn" data-form="3">F3<span class="dot"></span></button>
+      <button class="form-btn" data-form="4">F4<span class="dot"></span></button>
+      <button class="form-btn" data-form="5">F5<span class="dot"></span></button>
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="avatar-wrapper">
+      <img id="avatar-image" alt="avatar" src="" />
+    </div>
+    <div id="hint"></div>
+  </div>
+</div>
+
+<div id="settings-overlay">
+  <div id="settings-sheet">
+    <div id="settings-header">
+      <h2>⚙️ Ajustes</h2>
+      <button id="btn-close-settings">✕ Cerrar</button>
+    </div>
+
+    <!-- MICRÓFONO -->
+    <div class="section-title">Micrófono</div>
+    <div class="control">
+      <label>Nivel de entrada</label>
+      <div id="mic-bar"><div id="mic-level"></div></div>
+    </div>
+    <div class="control">
+      <label>Sensibilidad <span id="val-sens">50</span></label>
+      <input type="range" id="sens" min="1" max="100" value="50">
+    </div>
+    <div class="control">
+      <label>Retraso al cerrar boca <span id="val-hold">120 ms</span></label>
+      <input type="range" id="hold" min="0" max="1500" value="120" step="10">
+    </div>
+    <div class="action-row">
+      <button class="action-btn" id="btn-mic">🎤 Activar micrófono</button>
+    </div>
+
+    <div class="permission-box" id="perm-box">
+      <strong id="perm-title">⚠️ Permiso denegado</strong>
+      <div id="perm-body"></div>
+      <button id="perm-retry">🔄 Reintentar</button>
+      <button id="perm-reload">↻ Recargar</button>
+    </div>
+
+    <!-- AUDIO -->
+    <div class="section-title">Audio cargado</div>
+    <div id="audio-info">Sin audio cargado</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-audio-load2">🎵 Cargar archivo de audio</button>
+      <button class="action-btn danger" id="btn-audio-clear">🗑️ Quitar audio</button>
+    </div>
+    <input type="file" id="audio-input" accept="audio/*" style="display:none">
+
+    <!-- ANIMACIÓN -->
+    <div class="section-title">Animación</div>
+    <div class="control">
+      <label>Velocidad de parpadeo <span id="val-blink">3500 ms</span></label>
+      <input type="range" id="blink" min="500" max="8000" value="3500" step="100">
+    </div>
+    <div class="control">
+      <label>Oscilación vertical <span id="val-oscv">2 px</span></label>
+      <input type="range" id="oscv" min="0" max="20" value="2" step="0.5">
+    </div>
+    <div class="control">
+      <label>Oscilación horizontal <span id="val-oscx">0 px</span></label>
+      <input type="range" id="oscx" min="0" max="20" value="0" step="0.5">
+    </div>
+    <div class="control">
+      <label>Vibración <span id="val-vib">0.3 px</span></label>
+      <input type="range" id="vib" min="0" max="3" value="0.3" step="0.1">
+    </div>
+    <div class="control">
+      <label>Velocidad de oscilación <span id="val-osct">1.0x</span></label>
+      <input type="range" id="osct" min="0.1" max="3" value="1" step="0.1">
+    </div>
+
+    <!-- FONDO -->
+    <div class="section-title">Color de fondo</div>
+    <div class="control">
+      <div class="color-row">
+        <input type="color" id="bgcolor" value="#00b140">
+        <span style="font-size:12px;opacity:.8">Verde croma por defecto</span>
+      </div>
+    </div>
+
+    <!-- IMÁGENES DEL SLOT ACTUAL -->
+    <div class="section-title">
+      Imágenes: <span id="current-slot-name">Sentado · F1</span>
+    </div>
+    <div class="control">
+      <div class="thumb-grid" id="thumb-grid">
+        <label class="thumb" data-pose="AA"><img alt=""><span class="label">AA</span><input type="file" accept="image/*"></label>
+        <label class="thumb" data-pose="AB"><img alt=""><span class="label">AB</span><input type="file" accept="image/*"></label>
+        <label class="thumb" data-pose="BA"><img alt=""><span class="label">BA</span><input type="file" accept="image/*"></label>
+        <label class="thumb" data-pose="BB"><img alt=""><span class="label">BB</span><input type="file" accept="image/*"></label>
+      </div>
+      <p class="legend">
+        <span class="c1">● azul</span> = cargada desde GitHub
+        <span class="c2">● verde</span> = cargada desde el celular
+      </p>
+      <div class="action-row" style="margin-top:8px">
+        <button class="action-btn secondary" id="btn-bulk">📁 Cargar 4 desde celu</button>
+        <button class="action-btn secondary" id="btn-clear">🧹 Limpiar este slot</button>
+      </div>
+      <input type="file" id="bulk-input" accept="image/*" multiple style="display:none">
+    </div>
+
+    <!-- ALMACENAMIENTO -->
+    <div class="section-title">Almacenamiento</div>
+    <div id="storage-info">—</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-reload-github">🔄 Recargar desde GitHub</button>
+      <button class="action-btn danger" id="btn-wipe">🗑️ Borrar TODO</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN
+   ============================================================ */
+const STORAGE_KEY = 'vtuber_multi_v1';
+const ASSETS_PATH = 'assets/';
+const MAX_IMG_SIDE = 512;
+const JPEG_QUALITY = 0.75;
+
+/* IndexedDB para el audio */
+const IDB_NAME = 'vtuber_db';
+const IDB_STORE = 'files';
+const IDB_AUDIO_KEY = 'last_audio';
+
+const CHARACTERS = [
+  { id: 'sentado', label: 'Sentado', fileBase: 'sentado' },
+  { id: 'parado',  label: 'Parado',  fileBase: 'parado'  }
+];
+const FORMS = [1, 2, 3, 4, 5];
+const POSES = ['AA', 'AB', 'BA', 'BB'];
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+const STATE = {
+  charIndex: 0,
+  formIndex: 0,
+  eyesOpen: true,
+  mouthOpen: false,
+  sensitivity: 50,
+  mouthHold: 120,
+  blinkInterval: 3500,
+  oscVertical: 2,
+  oscHorizontal: 0,
+  vibration: 0.3,
+  oscSpeed: 1.0,
+  bgColor: '#00b140',
+  settingsOpen: false,
+  slots: {}
+};
+
+function initSlots() {
+  CHARACTERS.forEach(c => {
+    STATE.slots[c.id] = {};
+    FORMS.forEach(f => {
+      STATE.slots[c.id][f] = { AA: null, AB: null, BA: null, BB: null };
+    });
+  });
+}
+
+/* ============================================================
+   DOM
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const avatarImg   = $('avatar-image');
+const avatarWrap  = $('avatar-wrapper');
+const appEl       = $('app');
+const micLevel    = $('mic-level');
+const hintEl      = $('hint');
+const charBtns    = document.querySelectorAll('.character-btn');
+const formBtns    = document.querySelectorAll('.form-btn');
+const thumbGrid   = $('thumb-grid');
+const currentSlotName = $('current-slot-name');
+const btnMic      = $('btn-mic');
+const permBox     = $('perm-box');
+const permTitle   = $('perm-title');
+const permBody    = $('perm-body');
+const storageInfo = $('storage-info');
+const overlay     = $('settings-overlay');
+const btnSettings = $('btn-settings');
+const btnCloseSet = $('btn-close-settings');
+
+/* ============================================================
+   INDEXEDDB — guardar/leer el audio persistente
+   ============================================================ */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbPut(key, value) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbGet(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbDelete(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+/* ============================================================
+   HELPERS DE SLOT
+   ============================================================ */
+function currentCharId() { return CHARACTERS[STATE.charIndex].id; }
+function currentFormNum() { return FORMS[STATE.formIndex]; }
+function currentSlot() {
+  return STATE.slots[currentCharId()][currentFormNum()];
+}
+
+/* ============================================================
+   PERSISTENCIA (localStorage — ajustes e imágenes)
+   ============================================================ */
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveStateNow, 400);
+}
+
+function saveStateNow() {
+  try {
+    const compact = {};
+    CHARACTERS.forEach(c => {
+      compact[c.id] = {};
+      FORMS.forEach(f => {
+        compact[c.id][f] = {};
+        POSES.forEach(p => {
+          const slot = STATE.slots[c.id][f][p];
+          if (slot && slot.source === 'user') {
+            compact[c.id][f][p] = slot.src;
+          }
+        });
+      });
+    });
+
+    const payload = {
+      charIndex: STATE.charIndex,
+      formIndex: STATE.formIndex,
+      sensitivity: STATE.sensitivity,
+      mouthHold: STATE.mouthHold,
+      blinkInterval: STATE.blinkInterval,
+      oscVertical: STATE.oscVertical,
+      oscHorizontal: STATE.oscHorizontal,
+      vibration: STATE.vibration,
+      oscSpeed: STATE.oscSpeed,
+      bgColor: STATE.bgColor,
+      userSlots: compact
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    updateStorageInfo();
+  } catch (err) {
+    console.warn('Save error:', err);
+    if (err.name === 'QuotaExceededError' || err.code === 22) {
+      showHint('⚠️ Almacenamiento lleno. Usa imágenes más livianas o borra slots.');
+    }
+  }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    STATE.charIndex = data.charIndex ?? 0;
+    STATE.formIndex = data.formIndex ?? 0;
+    STATE.sensitivity = data.sensitivity ?? 50;
+    STATE.mouthHold = data.mouthHold ?? 120;
+    STATE.blinkInterval = data.blinkInterval ?? 3500;
+    STATE.oscVertical = data.oscVertical ?? 2;
+    STATE.oscHorizontal = data.oscHorizontal ?? 0;
+    STATE.vibration = data.vibration ?? 0.3;
+    STATE.oscSpeed = data.oscSpeed ?? 1;
+    STATE.bgColor = data.bgColor ?? '#00b140';
+
+    if (data.userSlots) {
+      CHARACTERS.forEach(c => {
+        const charData = data.userSlots[c.id];
+        if (!charData) return;
+        FORMS.forEach(f => {
+          const formData = charData[f];
+          if (!formData) return;
+          POSES.forEach(p => {
+            if (formData[p]) {
+              STATE.slots[c.id][f][p] = { src: formData[p], source: 'user' };
+            }
+          });
+        });
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn('Load error:', err);
+    return false;
+  }
+}
+
+function updateStorageInfo() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || '';
+    const kb = (raw.length / 1024).toFixed(1);
+    let ghCount = 0, userCount = 0, emptyCount = 0;
+    CHARACTERS.forEach(c => {
+      FORMS.forEach(f => {
+        POSES.forEach(p => {
+          const slot = STATE.slots[c.id][f][p];
+          if (!slot || !slot.src) emptyCount++;
+          else if (slot.source === 'github') ghCount++;
+          else userCount++;
+        });
+      });
+    });
+    storageInfo.innerHTML =
+      `GitHub: <b>${ghCount}</b> · Celular: <b>${userCount}</b> · Vacías: <b>${emptyCount}</b><br>` +
+      `Total: ${ghCount + userCount}/40 · ${kb} KB usados`;
+  } catch {
+    storageInfo.textContent = '—';
+  }
+}
+
+/* ============================================================
+   AUTOLOAD DESDE GITHUB (assets/)
+   ============================================================ */
+function githubUrl(charId, formNum, pose) {
+  const c = CHARACTERS.find(x => x.id === charId);
+  return `${ASSETS_PATH}${c.fileBase}_${formNum}_${pose}.png`;
+}
+
+function tryLoadFromGithub() {
+  let exitos = 0;
+
+  CHARACTERS.forEach(c => {
+    FORMS.forEach(f => {
+      POSES.forEach(p => {
+        const existing = STATE.slots[c.id][f][p];
+        if (existing && existing.source === 'user') return;
+
+        const img = new Image();
+        img.onload = () => {
+          STATE.slots[c.id][f][p] = { src: img.src, source: 'github' };
+          exitos++;
+          if (c.id === currentCharId() && f === currentFormNum()) {
+            refreshThumbs();
+            actualizarAvatar();
+            refreshFormDots();
+          }
+          updateStorageInfo();
+        };
+        img.onerror = () => {};
+        img.src = githubUrl(c.id, f, p);
+      });
+    });
+  });
+
+  setTimeout(() => {
+    if (exitos > 0) showHint(`✅ ${exitos} imágenes cargadas desde GitHub`);
+  }, 800);
+}
+
+/* ============================================================
+   COMPRESIÓN DE IMAGEN
+   ============================================================ */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const max = MAX_IMG_SIDE;
+        if (width > max || height > max) {
+          if (width > height) { height = Math.round(height * max / width); width = max; }
+          else { width = Math.round(width * max / height); height = max; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============================================================
+   AVATAR
+   ============================================================ */
+function actualizarAvatar() {
+  const slot = currentSlot();
+  const pose = (STATE.eyesOpen ? 'A' : 'B') + (STATE.mouthOpen ? 'A' : 'B');
+  const entry = slot[pose];
+  if (entry && entry.src) {
+    avatarImg.src = entry.src;
+  } else {
+    const charLabel = CHARACTERS[STATE.charIndex].label;
+    const formLabel = 'F' + FORMS[STATE.formIndex];
+    avatarImg.src =
+      'data:image/svg+xml;utf8,' +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+          <rect width="100%" height="100%" fill="#0f5132"/>
+          <text x="50%" y="45%" fill="#a7f3d0" font-size="20"
+                text-anchor="middle" font-family="sans-serif">
+            ${charLabel} · ${formLabel}
+          </text>
+          <text x="50%" y="55%" fill="#6ee7b7" font-size="16"
+                text-anchor="middle" font-family="sans-serif">
+            Pose ${pose} — sin imagen
+          </text>
+        </svg>`);
+  }
+}
+
+/* ============================================================
+   THUMBS
+   ============================================================ */
+thumbGrid.querySelectorAll('.thumb').forEach(thumb => {
+  const pose = thumb.dataset.pose;
+  const input = thumb.querySelector('input');
+  input.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImage(file);
+      currentSlot()[pose] = { src: dataUrl, source: 'user' };
+      actualizarAvatar();
+      refreshThumbs();
+      refreshFormDots();
+      scheduleSave();
+      showHint(`Pose ${pose} guardada`);
+    } catch (err) { console.error(err); showHint('Error al procesar imagen'); }
+    input.value = '';
+  });
+});
+
+function refreshThumbs() {
+  const slot = currentSlot();
+  thumbGrid.querySelectorAll('.thumb').forEach(thumb => {
+    const pose = thumb.dataset.pose;
+    const img = thumb.querySelector('img');
+    const entry = slot[pose];
+    thumb.classList.remove('filled', 'from-github');
+    if (entry && entry.src) {
+      img.src = entry.src;
+      thumb.classList.add('filled');
+      if (entry.source === 'github') thumb.classList.add('from-github');
+    } else {
+      img.src = '';
+    }
+  });
+}
+
+function refreshFormDots() {
+  formBtns.forEach((btn, i) => {
+    const f = FORMS[i];
+    const slot = STATE.slots[currentCharId()][f];
+    const has = POSES.some(p => slot[p] && slot[p].src);
+    btn.classList.toggle('has-content', has);
+  });
+  currentSlotName.textContent =
+    `${CHARACTERS[STATE.charIndex].label} · F${FORMS[STATE.formIndex]}`;
+}
+
+/* ============================================================
+   BOTONES PERSONAJE / FORMA
+   ============================================================ */
+charBtns.forEach((btn, i) => {
+  btn.addEventListener('click', () => {
+    charBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    STATE.charIndex = i;
+    refreshThumbs();
+    actualizarAvatar();
+    refreshFormDots();
+    scheduleSave();
+  });
+});
+
+formBtns.forEach((btn, i) => {
+  btn.addEventListener('click', () => {
+    formBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    STATE.formIndex = i;
+    refreshThumbs();
+    actualizarAvatar();
+    refreshFormDots();
+    scheduleSave();
+  });
+});
+
+/* ============================================================
+   MODAL DE AJUSTES
+   ============================================================ */
+function openSettings() {
+  STATE.settingsOpen = true;
+  overlay.classList.add('open');
+}
+function closeSettings() {
+  STATE.settingsOpen = false;
+  overlay.classList.remove('open');
+  scheduleBlink();
+}
+
+btnSettings.addEventListener('click', openSettings);
+btnCloseSet.addEventListener('click', closeSettings);
+
+overlay.addEventListener('click', e => {
+  if (e.target === overlay) closeSettings();
+});
+
+overlay.addEventListener('touchmove', e => {
+  e.stopPropagation();
+}, { passive: true });
+
+/* ============================================================
+   CARGA MASIVA / LIMPIAR SLOT
+   ============================================================ */
+$('btn-bulk').addEventListener('click', () => $('bulk-input').click());
+
+$('bulk-input').addEventListener('change', async e => {
+  const files = Array.from(e.target.files).slice(0, 4);
+  if (!files.length) return;
+  showHint(`Procesando ${files.length} imagen(es)...`);
+  for (let i = 0; i < files.length; i++) {
+    try {
+      const dataUrl = await compressImage(files[i]);
+      currentSlot()[POSES[i]] = { src: dataUrl, source: 'user' };
+    } catch (err) { console.warn(err); }
+  }
+  refreshThumbs();
+  actualizarAvatar();
+  refreshFormDots();
+  scheduleSave();
+  showHint(`${files.length} imagen(es) cargada(s)`);
+  e.target.value = '';
+});
+
+$('btn-clear').addEventListener('click', () => {
+  const slot = currentSlot();
+  POSES.forEach(p => {
+    if (slot[p] && slot[p].source === 'user') slot[p] = null;
+  });
+  refreshThumbs();
+  actualizarAvatar();
+  refreshFormDots();
+  scheduleSave();
+  showHint('Slots del usuario limpiados');
+});
+
+$('btn-wipe').addEventListener('click', async () => {
+  if (!confirm('¿Borrar TODO? Se quitarán también los archivos que vienen de GitHub de esta sesión y el audio guardado.')) return;
+  initSlots();
+  refreshThumbs();
+  actualizarAvatar();
+  refreshFormDots();
+  localStorage.removeItem(STORAGE_KEY);
+  try { await idbDelete(IDB_AUDIO_KEY); } catch(e) { console.warn(e); }
+  clearAudio(true);
+  updateStorageInfo();
+  showHint('Todo borrado');
+});
+
+$('btn-reload-github').addEventListener('click', () => {
+  showHint('Recargando desde GitHub...');
+  tryLoadFromGithub();
+});
+
+/* ============================================================
+   PARPADEO
+   ============================================================ */
+let blinkTimer = null;
+function scheduleBlink() {
+  clearTimeout(blinkTimer);
+  if (STATE.settingsOpen) return;
+  const base = STATE.blinkInterval;
+  const jitter = base * (0.6 + Math.random() * 0.8);
+  blinkTimer = setTimeout(() => {
+    if (STATE.settingsOpen) return;
+    STATE.eyesOpen = false;
+    actualizarAvatar();
+    setTimeout(() => {
+      if (STATE.settingsOpen) { STATE.eyesOpen = true; actualizarAvatar(); return; }
+      STATE.eyesOpen = true;
+      actualizarAvatar();
+      scheduleBlink();
+    }, 140);
+  }, jitter);
+}
+
+/* ============================================================
+   MOVIMIENTO
+   ============================================================ */
+let phase = 0;
+let vibTargetX = 0, vibTargetY = 0;
+let vibCurrentX = 0, vibCurrentY = 0;
+let lastVibUpdate = 0;
+let frozenTransform = 'translate3d(0,0,0)';
+
+function motionLoop(now) {
+  now = now || performance.now();
+
+  if (STATE.settingsOpen) {
+    avatarWrap.style.transform = frozenTransform;
+    requestAnimationFrame(motionLoop);
+    return;
+  }
+
+  phase += 0.04 * STATE.oscSpeed;
+
+  const yOsc = Math.sin(phase) * STATE.oscVertical;
+  const xOsc = Math.cos(phase * 0.8) * STATE.oscHorizontal;
+
+  if (now - lastVibUpdate > 80) {
+    lastVibUpdate = now;
+    const amp = STATE.vibration * 0.5;
+    vibTargetX = (Math.random() - 0.5) * 2 * amp;
+    vibTargetY = (Math.random() - 0.5) * 2 * amp;
+  }
+  vibCurrentX += (vibTargetX - vibCurrentX) * 0.15;
+  vibCurrentY += (vibTargetY - vibCurrentY) * 0.15;
+
+  frozenTransform = `translate3d(${xOsc + vibCurrentX}px, ${yOsc + vibCurrentY}px, 0)`;
+  avatarWrap.style.transform = frozenTransform;
+
+  requestAnimationFrame(motionLoop);
+}
+
+/* ============================================================
+   BOCA (compartida entre micrófono y audio) con retardo
+   ============================================================ */
+let mouthCloseTimer = null;
+
+function setMouth(open) {
+  if (open) {
+    if (mouthCloseTimer) {
+      clearTimeout(mouthCloseTimer);
+      mouthCloseTimer = null;
+    }
+    if (!STATE.mouthOpen) {
+      STATE.mouthOpen = true;
+      actualizarAvatar();
+    }
+  } else {
+    if (mouthCloseTimer) return;
+    if (!STATE.mouthOpen) return;
+    mouthCloseTimer = setTimeout(() => {
+      mouthCloseTimer = null;
+      STATE.mouthOpen = false;
+      actualizarAvatar();
+    }, STATE.mouthHold);
+  }
+}
+
+/* ============================================================
+   MICRÓFONO
+   ============================================================ */
+let audioCtx = null, analyser = null, dataArray = null, micStream = null, micActive = false;
+
+async function checkPermission() {
+  if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    return status.state;
+  } catch { return 'unknown'; }
+}
+
+function showPermissionHelp(title, bodyHtml) {
+  permTitle.textContent = title;
+  permBody.innerHTML = bodyHtml;
+  permBox.classList.add('visible');
+}
+function hidePermissionHelp() { permBox.classList.remove('visible'); }
+
+async function activarMicrofono() {
+  hidePermissionHelp();
+  const permState = await checkPermission();
+  if (permState === 'denied') {
+    showPermissionHelp(
+      '🚫 Permiso bloqueado previamente',
+      `Toca el <b>candado 🔒</b> o <b>ⓘ</b> junto a la URL → <b>Permisos</b> → <b>Micrófono</b> → <b>Permitir</b>.<br>Luego recarga.`
+    );
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const source = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.6;
+    source.connect(analyser);
+    dataArray = new Uint8Array(analyser.fftSize);
+
+    micActive = true;
+    btnMic.textContent = '🔴 Micrófono activo (toca para detener)';
+    btnMic.classList.add('rec');
+    showHint('Micrófono activo');
+    medirAudio();
+  } catch (err) {
+    console.error(err);
+    let msg = 'Error: ' + err.message;
+    if (err.name === 'NotAllowedError') {
+      msg = 'Permiso rechazado. Toca el candado 🔒 y cámbialo a <b>Permitir</b>. Verifica que la URL sea <b>https://</b>.';
+    } else if (err.name === 'NotFoundError') msg = 'No se encontró micrófono.';
+    else if (err.name === 'NotReadableError') msg = 'El micrófono está en uso por otra app.';
+    showPermissionHelp('⚠️ No se pudo activar', msg);
+  }
+}
+
+function medirAudio() {
+  if (!micActive) return;
+  if (audioLoaded && audioPlaying) {
+    requestAnimationFrame(medirAudio);
+    return;
+  }
+  analyser.getByteTimeDomainData(dataArray);
+  let sum = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    const v = (dataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / dataArray.length);
+  micLevel.style.width = Math.min(100, rms * 250) + '%';
+  const threshold = 0.35 - (STATE.sensitivity / 100) * 0.33;
+  setMouth(rms > threshold);
+  requestAnimationFrame(medirAudio);
+}
+
+$('perm-retry').addEventListener('click', () => { hidePermissionHelp(); activarMicrofono(); });
+$('perm-reload').addEventListener('click', () => location.reload());
+
+/* ============================================================
+   🎵 AUDIO CARGADO (reemplaza al micrófono) + persistencia
+   ============================================================ */
+let audioEl = null;
+let audioCtxFile = null;
+let audioSourceNode = null;
+let audioAnalyser = null;
+let audioDataArray = null;
+let audioLoaded = false;
+let audioPlaying = false;
+let audioRafId = null;
+let audioObjectUrl = null;
+let audioFileName = '';
+let audioFileBlob = null;
+let lastSavedPosition = 0;
+let positionSaveTimer = null;
+
+const btnAudioLoad  = $('btn-audio-load');
+const btnAudioPlay  = $('btn-audio-play');
+const btnAudioPause = $('btn-audio-pause');
+const btnAudioStop  = $('btn-audio-stop');
+const audioInfo     = $('audio-info');
+const audioInput    = $('audio-input');
+const audioProgressRow = $('audio-progress-row');
+const audioProgress = $('audio-progress');
+const audioProgressFill = $('audio-progress-fill');
+const audioCur = $('audio-cur');
+const audioDur = $('audio-dur');
+
+function fmtSec(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function updateAudioUI() {
+  btnAudioPlay.disabled  = !audioLoaded || audioPlaying;
+  btnAudioPause.disabled = !audioLoaded || !audioPlaying;
+  btnAudioStop.disabled  = !audioLoaded;
+  btnAudioLoad.classList.toggle('active', audioLoaded);
+  audioProgressRow.classList.toggle('disabled', !audioLoaded);
+
+  if (!audioLoaded) {
+    audioInfo.textContent = 'Sin audio cargado';
+    audioProgressFill.style.width = '0%';
+    audioCur.textContent = '0:00';
+    audioDur.textContent = '0:00';
+  } else {
+    const dur = isFinite(audioEl.duration) ? audioEl.duration : 0;
+    const estado = audioPlaying ? '▶ sonando' : '⏸ detenido';
+    audioInfo.textContent = `🎵 ${audioFileName || 'audio'} · ${dur.toFixed(1)}s · ${estado}`;
+    audioDur.textContent = fmtSec(dur);
+    updateProgressBar();
+  }
+}
+
+function updateProgressBar() {
+  if (!audioLoaded || !audioEl) {
+    audioProgressFill.style.width = '0%';
+    audioCur.textContent = '0:00';
+    return;
+  }
+  const dur = isFinite(audioEl.duration) && audioEl.duration > 0 ? audioEl.duration : 0;
+  const cur = audioEl.currentTime || 0;
+  const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
+  audioProgressFill.style.width = pct + '%';
+  audioCur.textContent = fmtSec(cur);
+}
+
+/* --- Guardar posición actual (para reanudar después) --- */
+function scheduleSavePosition() {
+  if (!audioLoaded || !audioEl) return;
+  clearTimeout(positionSaveTimer);
+  positionSaveTimer = setTimeout(() => {
+    lastSavedPosition = audioEl.currentTime || 0;
+    saveAudioMeta();
+  }, 1500);
+}
+
+async function saveAudioMeta() {
+  if (!audioFileBlob) return;
+  try {
+    await idbPut(IDB_AUDIO_KEY, {
+      name: audioFileName,
+      blob: audioFileBlob,
+      position: lastSavedPosition || 0,
+      savedAt: Date.now()
+    });
+  } catch (e) {
+    console.warn('No se pudo guardar el audio:', e);
+  }
+}
+
+/* --- Cargar archivo de audio (nuevo) --- */
+async function loadAudioFile(file, opts = {}) {
+  const { persist = true, startAt = 0, silent = false } = opts;
+
+  clearAudio(true);
+
+  audioFileBlob = file;
+  audioFileName = file.name || 'audio';
+  audioObjectUrl = URL.createObjectURL(file);
+
+  audioEl = new Audio();
+  audioEl.src = audioObjectUrl;
+  audioEl.crossOrigin = 'anonymous';
+  audioEl.preload = 'auto';
+
+  audioEl.addEventListener('loadedmetadata', () => {
+    if (startAt > 0 && isFinite(audioEl.duration) && startAt < audioEl.duration) {
+      try { audioEl.currentTime = startAt; } catch(e){}
+    }
+    updateAudioUI();
+  });
+
+  audioEl.addEventListener('timeupdate', () => {
+    updateProgressBar();
+    scheduleSavePosition();
+  });
+
+  audioEl.addEventListener('play', () => {
+    audioPlaying = true;
+    updateAudioUI();
+    if (!audioRafId) analizarAudio();
+  });
+
+  audioEl.addEventListener('pause', () => {
+    audioPlaying = false;
+    if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+    setMouth(false);
+    updateAudioUI();
+  });
+
+  audioEl.addEventListener('ended', () => {
+    audioPlaying = false;
+    lastSavedPosition = 0;
+    saveAudioMeta();
+    if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+    setMouth(false);
+    updateAudioUI();
+  });
+
+  // Analizador de audio
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  audioCtxFile = new AudioCtx();
+  audioSourceNode = audioCtxFile.createMediaElementSource(audioEl);
+  audioAnalyser = audioCtxFile.createAnalyser();
+  audioAnalyser.fftSize = 512;
+  audioAnalyser.smoothingTimeConstant = 0.6;
+  audioSourceNode.connect(audioAnalyser);
+  audioAnalyser.connect(audioCtxFile.destination);
+  audioDataArray = new Uint8Array(audioAnalyser.fftSize);
+
+  audioLoaded = true;
+  audioPlaying = false;
+  updateAudioUI();
+
+  // Guardar blob en IndexedDB
+  if (persist) {
+    try {
+      await idbPut(IDB_AUDIO_KEY, {
+        name: audioFileName,
+        blob: file,
+        position: startAt || 0,
+        savedAt: Date.now()
+      });
+    } catch (e) {
+      console.warn('No se pudo persistir el audio:', e);
+      showHint('⚠️ No se pudo guardar el audio en el navegador');
+    }
+  }
+
+  if (!silent) showHint(`🎵 Audio cargado: ${audioFileName}`);
+}
+
+/* --- Restaurar audio guardado al iniciar --- */
+async function restoreSavedAudio() {
+  try {
+    const saved = await idbGet(IDB_AUDIO_KEY);
+    if (!saved || !saved.blob) return false;
+    // Reconstruir File a partir del Blob guardado
+    const file = new File([saved.blob], saved.name || 'audio', { type: saved.blob.type || 'audio/mpeg' });
+    await loadAudioFile(file, { persist: false, startAt: saved.position || 0, silent: true });
+    showHint(`🎵 Audio restaurado: ${saved.name || 'audio'}`);
+    return true;
+  } catch (e) {
+    console.warn('No se pudo restaurar el audio:', e);
+    return false;
+  }
+}
+
+function playAudio() {
+  if (!audioLoaded || !audioEl) return;
+  audioCtxFile.resume().catch(()=>{});
+  audioEl.play().then(() => {
+    audioPlaying = true;
+    updateAudioUI();
+    if (!audioRafId) analizarAudio();
+  }).catch(err => {
+    console.error(err);
+    showHint('No se pudo reproducir el audio');
+  });
+}
+
+function pauseAudio() {
+  if (!audioLoaded || !audioEl) return;
+  audioEl.pause();
+  audioPlaying = false;
+  lastSavedPosition = audioEl.currentTime || 0;
+  saveAudioMeta();
+  if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+  setMouth(false);
+  updateAudioUI();
+}
+
+function stopAudio() {
+  if (!audioLoaded || !audioEl) return;
+  audioEl.pause();
+  audioEl.currentTime = 0;
+  audioPlaying = false;
+  lastSavedPosition = 0;
+  saveAudioMeta();
+  if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+  setMouth(false);
+  updateAudioUI();
+}
+
+function clearAudio(silent) {
+  if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+  if (audioEl) {
+    try { audioEl.pause(); } catch(e){}
+    audioEl.src = '';
+    audioEl = null;
+  }
+  if (audioSourceNode) { try { audioSourceNode.disconnect(); } catch(e){} audioSourceNode = null; }
+  if (audioAnalyser) { try { audioAnalyser.disconnect(); } catch(e){} audioAnalyser = null; }
+  if (audioCtxFile) { try { audioCtxFile.close(); } catch(e){} audioCtxFile = null; }
+  if (audioObjectUrl) { URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = null; }
+  audioLoaded = false;
+  audioPlaying = false;
+  audioDataArray = null;
+  audioFileName = '';
+  audioFileBlob = null;
+  lastSavedPosition = 0;
+  setMouth(false);
+  updateAudioUI();
+  if (!silent) showHint('Audio quitado');
+}
+
+function analizarAudio() {
+  if (!audioAnalyser || !audioDataArray) return;
+  audioAnalyser.getByteTimeDomainData(audioDataArray);
+  let sum = 0;
+  for (let i = 0; i < audioDataArray.length; i++) {
+    const v = (audioDataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / audioDataArray.length);
+  micLevel.style.width = Math.min(100, rms * 250) + '%';
+  const threshold = 0.35 - (STATE.sensitivity / 100) * 0.33;
+  setMouth(rms > threshold);
+
+  if (audioPlaying && audioEl && !audioEl.paused) {
+    audioRafId = requestAnimationFrame(analizarAudio);
+  } else {
+    audioRafId = null;
+  }
+}
+
+/* --- Interacción con la barra de progreso --- */
+function seekFromEvent(clientX) {
+  if (!audioLoaded || !audioEl) return;
+  const rect = audioProgress.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  const dur = isFinite(audioEl.duration) ? audioEl.duration : 0;
+  if (dur > 0) {
+    audioEl.currentTime = pct * dur;
+    lastSavedPosition = audioEl.currentTime;
+    saveAudioMeta();
+    updateProgressBar();
+  }
+}
+audioProgress.addEventListener('click', e => seekFromEvent(e.clientX));
+audioProgress.addEventListener('touchstart', e => {
+  if (e.touches[0]) seekFromEvent(e.touches[0].clientX);
+}, { passive: true });
+
+btnAudioLoad.addEventListener('click', () => audioInput.click());
+$('btn-audio-load2').addEventListener('click', () => audioInput.click());
+audioInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadAudioFile(file, { persist: true, startAt: 0 });
+  e.target.value = '';
+});
+
+btnAudioPlay.addEventListener('click', playAudio);
+btnAudioPause.addEventListener('click', pauseAudio);
+btnAudioStop.addEventListener('click', stopAudio);
+
+$('btn-audio-clear').addEventListener('click', async () => {
+  clearAudio(false);
+  try { await idbDelete(IDB_AUDIO_KEY); } catch(e) { console.warn(e); }
+});
+
+/* ============================================================
+   SLIDERS
+   ============================================================ */
+$('sens').addEventListener('input', e => {
+  STATE.sensitivity = +e.target.value;
+  $('val-sens').textContent = STATE.sensitivity;
+  scheduleSave();
+});
+$('hold').addEventListener('input', e => {
+  STATE.mouthHold = +e.target.value;
+  $('val-hold').textContent = STATE.mouthHold + ' ms';
+  scheduleSave();
+});
+$('blink').addEventListener('input', e => {
+  STATE.blinkInterval = +e.target.value;
+  $('val-blink').textContent = STATE.blinkInterval + ' ms';
+  scheduleBlink(); scheduleSave();
+});
+$('oscv').addEventListener('input', e => {
+  STATE.oscVertical = +e.target.value;
+  $('val-oscv').textContent = STATE.oscVertical + ' px';
+  scheduleSave();
+});
+$('oscx').addEventListener('input', e => {
+  STATE.oscHorizontal = +e.target.value;
+  $('val-oscx').textContent = STATE.oscHorizontal + ' px';
+  scheduleSave();
+});
+$('vib').addEventListener('input', e => {
+  STATE.vibration = +e.target.value;
+  $('val-vib').textContent = STATE.vibration.toFixed(1) + ' px';
+  scheduleSave();
+});
+$('osct').addEventListener('input', e => {
+  STATE.oscSpeed = +e.target.value;
+  $('val-osct').textContent = STATE.oscSpeed.toFixed(1) + 'x';
+  scheduleSave();
+});
+$('bgcolor').addEventListener('input', e => {
+  STATE.bgColor = e.target.value;
+  document.documentElement.style.setProperty('--bg-color', STATE.bgColor);
+  appEl.style.background = STATE.bgColor;
+  scheduleSave();
+});
+
+/* ============================================================
+   BOTÓN MICRÓFONO
+   ============================================================ */
+btnMic.addEventListener('click', () => {
+  if (!micActive) activarMicrofono();
+  else {
+    micActive = false;
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+    if (audioCtx) audioCtx.close();
+    btnMic.textContent = '🎤 Activar micrófono';
+    btnMic.classList.remove('rec');
+    setMouth(false);
+    hidePermissionHelp();
+  }
+});
+
+/* ============================================================
+   HINT
+   ============================================================ */
+let hintTimer = null;
+function showHint(text) {
+  hintEl.textContent = text;
+  hintEl.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hintEl.classList.remove('show'), 3000);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init() {
+  initSlots();
+  const hadSave = loadState();
+
+  document.documentElement.style.setProperty('--bg-color', STATE.bgColor);
+  appEl.style.background = STATE.bgColor;
+  $('bgcolor').value = STATE.bgColor;
+  $('sens').value = STATE.sensitivity;      $('val-sens').textContent = STATE.sensitivity;
+  $('hold').value = STATE.mouthHold;        $('val-hold').textContent = STATE.mouthHold + ' ms';
+  $('blink').value = STATE.blinkInterval;   $('val-blink').textContent = STATE.blinkInterval + ' ms';
+  $('oscv').value = STATE.oscVertical;      $('val-oscv').textContent = STATE.oscVertical + ' px';
+  $('oscx').value = STATE.oscHorizontal;    $('val-oscx').textContent = STATE.oscHorizontal + ' px';
+  $('vib').value = STATE.vibration;         $('val-vib').textContent = STATE.vibration.toFixed(1) + ' px';
+  $('osct').value = STATE.oscSpeed;         $('val-osct').textContent = STATE.oscSpeed.toFixed(1) + 'x';
+
+  charBtns.forEach((b, i) => b.classList.toggle('active', i === STATE.charIndex));
+  formBtns.forEach((b, i) => b.classList.toggle('active', i === STATE.formIndex));
+
+  refreshThumbs();
+  actualizarAvatar();
+  refreshFormDots();
+  updateStorageInfo();
+  updateAudioUI();
+  scheduleBlink();
+  requestAnimationFrame(motionLoop);
+
+  tryLoadFromGithub();
+
+  showHint(hadSave
+    ? 'Estado restaurado · cargando assets de GitHub...'
+    : 'Cargando assets de GitHub...');
+
+  // Restaurar audio guardado (silencioso)
+  await restoreSavedAudio();
+
+  const p = await checkPermission();
+  if (p === 'denied') {
+    showPermissionHelp(
+      '🚫 Micrófono bloqueado',
+      `Toca el <b>candado 🔒</b> junto a la URL y cámbialo a <b>"Permitir"</b>, luego recarga.`
+    );
+  }
+}
+init();
+
+/* ============================================================
+   Antes de cerrar la página: guarda la posición del audio
+   ============================================================ */
+window.addEventListener('beforeunload', () => {
+  if (audioLoaded && audioEl) {
+    lastSavedPosition = audioEl.currentTime || 0;
+    saveAudioMeta();
+  }
+});
+window.addEventListener('pagehide', () => {
+  if (audioLoaded && audioEl) {
+    lastSavedPosition = audioEl.currentTime || 0;
+    saveAudioMeta();
+  }
+});
+</script>
+</body>
+</html>
