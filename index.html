@@ -188,7 +188,7 @@
     filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
   }
 
-  /* ===== TRANSFORM PANEL (barra flotante) ===== */
+  /* ===== TRANSFORM PANEL ===== */
   #transform-toggle {
     position: absolute;
     top: 10px;
@@ -341,7 +341,7 @@
   .tp-clear:active { transform: scale(0.97); }
   .tp-clear.danger { background: #dc2626; }
 
-  /* ===== POSES FLOATING (Modo 1 toggle, Modo 2 auto) ===== */
+  /* ===== POSES FLOATING ===== */
   #live-poses {
     position: absolute;
     display: none;
@@ -794,8 +794,11 @@
 
     <div class="section-title">Animación</div>
     <div class="control">
-      <label>Velocidad de parpadeo <span id="val-blink">3500 ms</span></label>
-      <input type="range" id="blink" min="500" max="8000" value="3500" step="100">
+      <label>Intervalo base de parpadeo <span id="val-blink">5 s</span></label>
+      <input type="range" id="blink" min="3" max="15" value="5" step="1">
+      <div style="font-size:11px;opacity:.6;margin-top:2px;line-height:1.4">
+        El parpadeo real es aleatorio entre <b id="val-blink-min">5</b> y <b id="val-blink-max">8</b> segundos.
+      </div>
     </div>
     <div class="control">
       <label>Oscilación vertical <span id="val-oscv">2 px</span></label>
@@ -901,18 +904,20 @@ const VARIANTS = ['AA', 'AB', 'BA', 'BB'];
 
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3.0;
 const OFFSET_MIN = -400, OFFSET_MAX = 400;
+const BLINK_JITTER = 3;   // segundos extra aleatorios
 
 /* ============================================================
    ESTADO
    ============================================================ */
 const STATE = {
   avatar: 1,
-  poseId: 'normal',
+  poseId: 'normal',           // pose objetivo
+  renderedPoseId: 'normal',   // pose efectivamente pintada (para transformaciones atómicas)
   eyesOpen: true,
   mouthOpen: false,
   sensitivity: 50,
   mouthHold: 120,
-  blinkInterval: 3500,
+  blinkBase: 5,               // segundos (3–15)
   oscVertical: 2,
   oscHorizontal: 0,
   vibration: 0.3,
@@ -920,18 +925,16 @@ const STATE = {
   vibBoostActive: false,
   oscSpeed: 1.0,
   bgColor: DEFAULT_BG,
-  /* Transformaciones */
   zoom: 1.0,
   offsetX: 0,
   offsetY: 0,
-  poseTransform: {},        // { [poseId]: { zoom?, x?, y? } }
-  allActive: { zoom: true, x: true, y: true },   // modo edición por campo
-  /* UI */
+  poseTransform: {},
+  allActive: { zoom: true, x: true, y: true },
   avatarShadow: false,
   settingsOpen: false,
   transformPanelOpen: false,
   mode: 'prerecorded',
-  posesVisiblePrerecorded: false,   // visibilidad poses en Modo 1
+  posesVisiblePrerecorded: false,
   imageCache: {},
   imageStatus: {},
   syncEntries: [],
@@ -940,7 +943,6 @@ const STATE = {
   currentSyncIndex: -1
 };
 
-/* Devuelve la transformación efectiva de una pose */
 function effectiveTransform(poseId) {
   const ov = STATE.poseTransform[poseId] || {};
   return {
@@ -1072,36 +1074,61 @@ async function preloadAllPoses(avatar) {
 }
 
 /* ============================================================
-   RENDER AVATAR
+   RENDER AVATAR (atómico)
+   ============================================================
+   Cuando la imagen nueva está lista, actualizamos el src Y
+   renderedPoseId en el mismo tick. Así la transform del
+   wrapper (que lee renderedPoseId) nunca se desfasa de la
+   imagen visible.
    ============================================================ */
 function currentVariant() {
   return (STATE.eyesOpen ? 'A' : 'B') + (STATE.mouthOpen ? 'A' : 'B');
 }
+function setAvatarSrc(src, forPoseId) {
+  avatarImg.src = src;
+  STATE.renderedPoseId = forPoseId;
+}
 function actualizarAvatar() {
   const variant = currentVariant();
-  const key = imageKey(STATE.avatar, STATE.poseId, variant);
+  const targetPoseId = STATE.poseId;
+  const key = imageKey(STATE.avatar, targetPoseId, variant);
   const cached = STATE.imageCache[key];
-  if (cached) { avatarImg.src = cached.src; return; }
+
+  if (cached) {
+    setAvatarSrc(cached.src, targetPoseId);
+    return;
+  }
+
+  // Si es la misma pose que ya está renderizada, no hace falta esperar
+  // (ej. cambio de ojos/boca dentro de la misma pose).
+  if (targetPoseId === STATE.renderedPoseId) {
+    const fallbackKey = imageKey(STATE.avatar, targetPoseId, 'AA');
+    const fallbackImg = STATE.imageCache[fallbackKey];
+    if (fallbackImg) avatarImg.src = fallbackImg.src;
+  }
 
   if (STATE.imageStatus[key] !== 'missing') {
-    getImage(STATE.avatar, STATE.poseId, variant, (img, ok) => {
+    getImage(STATE.avatar, targetPoseId, variant, (img, ok) => {
       if (ok) {
-        if (currentVariant() === variant &&
-            imageKey(STATE.avatar, STATE.poseId, variant) === key) {
-          avatarImg.src = img.src;
+        // Solo aplicar si seguimos queriendo esa pose
+        if (STATE.poseId === targetPoseId) {
+          setAvatarSrc(img.src, targetPoseId);
+        }
+      } else {
+        // Imagen faltante → fallback SVG
+        if (STATE.poseId === targetPoseId) {
+          setAvatarSrc(buildFallbackSVG(targetPoseId, variant), targetPoseId);
         }
       }
     });
+    return;
   }
-  if (STATE.poseId !== 'normal') {
-    const normalKey = imageKey(STATE.avatar, 'normal', variant);
-    if (STATE.imageCache[normalKey]) {
-      avatarImg.src = STATE.imageCache[normalKey].src;
-      return;
-    }
-  }
-  const pose = POSE_MAP[STATE.poseId] || { label: STATE.poseId, emoji: '?' };
-  avatarImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+
+  setAvatarSrc(buildFallbackSVG(targetPoseId, variant), targetPoseId);
+}
+function buildFallbackSVG(poseId, variant) {
+  const pose = POSE_MAP[poseId] || { label: poseId, emoji: '?' };
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
       <rect width="100%" height="100%" fill="#0f5132"/>
       <text x="50%" y="45%" fill="#a7f3d0" font-size="22"
@@ -1116,7 +1143,7 @@ function actualizarAvatar() {
 }
 
 /* ============================================================
-   POSES FLOTANTES (Modo 1 toggle / Modo 2 auto)
+   POSES FLOTANTES
    ============================================================ */
 let livePosesBuilt = false;
 function buildLivePoses() {
@@ -1150,8 +1177,6 @@ function updatePosesVisibility() {
   } else {
     livePosesEl.classList.remove('visible');
   }
-
-  // El botón "🎭" solo visible en Modo 1
   btnPosesTop.classList.toggle('hidden', STATE.mode !== 'prerecorded');
 }
 
@@ -1160,7 +1185,7 @@ function updatePosesVisibility() {
    ============================================================ */
 function setPose(poseId, userInitiated) {
   STATE.poseId = poseId;
-  actualizarAvatar();
+  actualizarAvatar();       // esto actualizará renderedPoseId cuando la imagen esté lista
   updateStatusRow();
   refreshLivePoses();
   updateTransformUI();
@@ -1188,7 +1213,7 @@ function saveStateNow() {
       poseId: STATE.poseId,
       sensitivity: STATE.sensitivity,
       mouthHold: STATE.mouthHold,
-      blinkInterval: STATE.blinkInterval,
+      blinkBase: STATE.blinkBase,
       oscVertical: STATE.oscVertical,
       oscHorizontal: STATE.oscHorizontal,
       vibration: STATE.vibration,
@@ -1218,7 +1243,7 @@ function loadState() {
     STATE.poseId              = d.poseId ?? 'normal';
     STATE.sensitivity         = d.sensitivity ?? 50;
     STATE.mouthHold           = d.mouthHold ?? 120;
-    STATE.blinkInterval       = d.blinkInterval ?? 3500;
+    STATE.blinkBase           = d.blinkBase ?? 5;
     STATE.oscVertical         = d.oscVertical ?? 2;
     STATE.oscHorizontal       = d.oscHorizontal ?? 0;
     STATE.vibration           = d.vibration ?? 0.3;
@@ -1238,6 +1263,7 @@ function loadState() {
     STATE.transformPanelOpen  = d.transformPanelOpen ?? false;
     STATE.posesVisiblePrerecorded = d.posesVisiblePrerecorded ?? false;
     if (!POSE_MAP[STATE.poseId]) STATE.poseId = 'normal';
+    STATE.renderedPoseId = STATE.poseId;
     return true;
   } catch (e) { console.warn(e); return false; }
 }
@@ -1838,16 +1864,19 @@ btnMic.addEventListener('click', () => {
 });
 
 /* ============================================================
-   PARPADEO
+   PARPADEO (base 3–15s + jitter aleatorio de +0 a +3s)
    ============================================================ */
 let blinkTimer = null;
+function nextBlinkDelay() {
+  const base = STATE.blinkBase;             // 3–15 segundos
+  const extra = Math.random() * BLINK_JITTER; // 0.00 – 3.00
+  return (base + extra) * 1000;
+}
 function scheduleBlink() {
   clearTimeout(blinkTimer);
   if (STATE.settingsOpen) return;
-  const base = STATE.blinkInterval;
-  const jitter = base * (0.6 + Math.random() * 0.8);
   blinkTimer = setTimeout(() => {
-    if (STATE.settingsOpen) return;
+    if (STATE.settingsOpen) { scheduleBlink(); return; }
     STATE.eyesOpen = false;
     actualizarAvatar();
     setTimeout(() => {
@@ -1855,11 +1884,11 @@ function scheduleBlink() {
       actualizarAvatar();
       scheduleBlink();
     }, 140);
-  }, jitter);
+  }, nextBlinkDelay());
 }
 
 /* ============================================================
-   MOVIMIENTO
+   MOVIMIENTO (lee renderedPoseId para atomicidad)
    ============================================================ */
 let phase = 0;
 let vibTargetX = 0, vibTargetY = 0;
@@ -1868,7 +1897,7 @@ let lastVibUpdate = 0;
 let frozenTransform = 'translate3d(0,0,0) scale(1)';
 
 function buildTransform(offsetX, offsetY) {
-  const t = effectiveTransform(STATE.poseId);
+  const t = effectiveTransform(STATE.renderedPoseId);
   return `translate3d(${offsetX + t.x}px, ${offsetY + t.y}px, 0) scale(${t.zoom})`;
 }
 function motionLoop(now) {
@@ -2063,8 +2092,10 @@ $('hold').addEventListener('input', e => {
   scheduleSave();
 });
 $('blink').addEventListener('input', e => {
-  STATE.blinkInterval = +e.target.value;
-  $('val-blink').textContent = STATE.blinkInterval + ' ms';
+  STATE.blinkBase = +e.target.value;
+  $('val-blink').textContent = STATE.blinkBase + ' s';
+  $('val-blink-min').textContent = STATE.blinkBase;
+  $('val-blink-max').textContent = STATE.blinkBase + BLINK_JITTER;
   scheduleBlink(); scheduleSave();
 });
 $('oscv').addEventListener('input', e => {
@@ -2127,6 +2158,7 @@ $('btn-wipe').addEventListener('click', async () => {
   clearSync();
   STATE.avatar = 1;
   STATE.poseId = 'normal';
+  STATE.renderedPoseId = 'normal';
   STATE.zoom = 1.0;
   STATE.offsetX = 0;
   STATE.offsetY = 0;
@@ -2190,7 +2222,9 @@ async function init() {
   $('bgcolor').value = STATE.bgColor;
   $('sens').value = STATE.sensitivity;      $('val-sens').textContent = STATE.sensitivity;
   $('hold').value = STATE.mouthHold;        $('val-hold').textContent = STATE.mouthHold + ' ms';
-  $('blink').value = STATE.blinkInterval;   $('val-blink').textContent = STATE.blinkInterval + ' ms';
+  $('blink').value = STATE.blinkBase;       $('val-blink').textContent = STATE.blinkBase + ' s';
+  $('val-blink-min').textContent = STATE.blinkBase;
+  $('val-blink-max').textContent = STATE.blinkBase + BLINK_JITTER;
   $('oscv').value = STATE.oscVertical;      $('val-oscv').textContent = STATE.oscVertical + ' px';
   $('oscx').value = STATE.oscHorizontal;    $('val-oscx').textContent = STATE.oscHorizontal + ' px';
   $('vib').value = STATE.vibration;         $('val-vib').textContent = STATE.vibration.toFixed(1) + ' px';
