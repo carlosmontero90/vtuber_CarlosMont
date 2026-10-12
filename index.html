@@ -219,7 +219,7 @@
     position: absolute;
     top: 62px;
     left: 10px;
-    width: 240px;
+    width: 250px;
     max-width: calc(100vw - 20px);
     background: rgba(0,0,0,0.55);
     backdrop-filter: blur(12px);
@@ -235,6 +235,17 @@
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   }
   #transform-panel.open { display: flex; }
+
+  .tp-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.6;
+    font-weight: 700;
+    margin-top: 4px;
+    margin-bottom: -2px;
+  }
+  .tp-section-title:first-child { margin-top: 0; }
 
   .tp-row {
     display: flex;
@@ -700,6 +711,7 @@
 
     <button id="transform-toggle" title="Transformación">🎛️</button>
     <div id="transform-panel">
+      <div class="tp-section-title">Transformación</div>
       <div class="tp-row">
         <div class="tp-head">
           <span>🔍 Zoom</span>
@@ -730,6 +742,31 @@
         <div class="tp-controls">
           <input type="range" class="tp-slider" id="tp-y" min="-400" max="400" step="2" value="0">
           <button class="tp-all-btn" id="tp-y-all" data-field="y">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-divider"></div>
+      <div class="tp-section-title">Animación</div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>📳 Vibración</span>
+          <span class="value" id="tp-vib-val">0.3 px</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-vib" min="0" max="3" step="0.1" value="0.3">
+          <button class="tp-all-btn" id="tp-vib-all" data-field="vib">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>🫨 Boost ×</span>
+          <span class="value" id="tp-boost-val">1.5x</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-boost" min="1" max="10" step="0.1" value="1.5">
+          <button class="tp-all-btn" id="tp-boost-all" data-field="boost">ALL</button>
         </div>
       </div>
 
@@ -792,7 +829,7 @@
       <button id="perm-reload">↻ Recargar</button>
     </div>
 
-    <div class="section-title">Animación</div>
+    <div class="section-title">Animación (global)</div>
     <div class="control">
       <label>Intervalo base de parpadeo <span id="val-blink">5 s</span></label>
       <input type="range" id="blink" min="3" max="15" value="5" step="1">
@@ -807,14 +844,6 @@
     <div class="control">
       <label>Oscilación horizontal <span id="val-oscx">0 px</span></label>
       <input type="range" id="oscx" min="0" max="20" value="0" step="0.5">
-    </div>
-    <div class="control">
-      <label>Vibración normal <span id="val-vib">0.3 px</span></label>
-      <input type="range" id="vib" min="0" max="3" value="0.3" step="0.1">
-    </div>
-    <div class="control">
-      <label>Multiplicador boost 🫨 <span id="val-vibboost">1.5x</span></label>
-      <input type="range" id="vibboost" min="1" max="6" value="1.5" step="0.1">
     </div>
     <div class="control">
       <label>Velocidad de oscilación <span id="val-osct">1.0x</span></label>
@@ -849,7 +878,7 @@
       <button class="action-btn secondary" id="btn-reload-poses">🔄 Recargar poses</button>
     </div>
 
-    <div class="section-title">Transformación por pose</div>
+    <div class="section-title">Overrides por pose</div>
     <div class="file-info" id="transform-info">—</div>
     <div class="action-row">
       <button class="action-btn secondary" id="btn-clear-pose-transform">🧹 Limpiar esta pose</button>
@@ -904,32 +933,39 @@ const VARIANTS = ['AA', 'AB', 'BA', 'BB'];
 
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3.0;
 const OFFSET_MIN = -400, OFFSET_MAX = 400;
-const BLINK_JITTER = 3;   // segundos extra aleatorios
+const VIB_MIN = 0, VIB_MAX = 3;
+const BOOST_MIN = 1.0, BOOST_MAX = 10.0;
+const BLINK_JITTER = 3;
 
 /* ============================================================
    ESTADO
    ============================================================ */
 const STATE = {
   avatar: 1,
-  poseId: 'normal',           // pose objetivo
-  renderedPoseId: 'normal',   // pose efectivamente pintada (para transformaciones atómicas)
+  poseId: 'normal',
+  renderedPoseId: 'normal',
   eyesOpen: true,
   mouthOpen: false,
   sensitivity: 50,
   mouthHold: 120,
-  blinkBase: 5,               // segundos (3–15)
+  blinkBase: 5,
   oscVertical: 2,
   oscHorizontal: 0,
-  vibration: 0.3,
-  vibBoostMultiplier: 1.5,
-  vibBoostActive: false,
   oscSpeed: 1.0,
   bgColor: DEFAULT_BG,
+  /* Globals de transformación + animación por pose */
   zoom: 1.0,
   offsetX: 0,
   offsetY: 0,
-  poseTransform: {},
-  allActive: { zoom: true, x: true, y: true },
+  vibration: 0.3,
+  vibBoostMultiplier: 1.5,
+  /* Overrides por pose */
+  poseOverride: {},   // { [poseId]: { zoom?, x?, y?, vib?, boost? } }
+  allActive: {
+    zoom: false, x: false, y: false, vib: false, boost: false
+  },
+  /* UI */
+  vibBoostActive: false,
   avatarShadow: false,
   settingsOpen: false,
   transformPanelOpen: false,
@@ -943,12 +979,15 @@ const STATE = {
   currentSyncIndex: -1
 };
 
-function effectiveTransform(poseId) {
-  const ov = STATE.poseTransform[poseId] || {};
+/* Transformación + animación efectiva para una pose */
+function effectiveParams(poseId) {
+  const ov = STATE.poseOverride[poseId] || {};
   return {
-    zoom: (typeof ov.zoom === 'number') ? ov.zoom : STATE.zoom,
-    x:    (typeof ov.x    === 'number') ? ov.x    : STATE.offsetX,
-    y:    (typeof ov.y    === 'number') ? ov.y    : STATE.offsetY
+    zoom:  (typeof ov.zoom  === 'number') ? ov.zoom  : STATE.zoom,
+    x:     (typeof ov.x     === 'number') ? ov.x     : STATE.offsetX,
+    y:     (typeof ov.y     === 'number') ? ov.y     : STATE.offsetY,
+    vib:   (typeof ov.vib   === 'number') ? ov.vib   : STATE.vibration,
+    boost: (typeof ov.boost === 'number') ? ov.boost : STATE.vibBoostMultiplier
   };
 }
 
@@ -982,9 +1021,13 @@ const tpPanel  = $('transform-panel');
 const tpZoom   = $('tp-zoom');
 const tpX      = $('tp-x');
 const tpY      = $('tp-y');
+const tpVib    = $('tp-vib');
+const tpBoost  = $('tp-boost');
 const tpZoomVal = $('tp-zoom-val');
 const tpXVal    = $('tp-x-val');
 const tpYVal    = $('tp-y-val');
+const tpVibVal  = $('tp-vib-val');
+const tpBoostVal = $('tp-boost-val');
 const tpStatus  = $('tp-status');
 
 /* ============================================================
@@ -1074,12 +1117,7 @@ async function preloadAllPoses(avatar) {
 }
 
 /* ============================================================
-   RENDER AVATAR (atómico)
-   ============================================================
-   Cuando la imagen nueva está lista, actualizamos el src Y
-   renderedPoseId en el mismo tick. Así la transform del
-   wrapper (que lee renderedPoseId) nunca se desfasa de la
-   imagen visible.
+   RENDER AVATAR
    ============================================================ */
 function currentVariant() {
   return (STATE.eyesOpen ? 'A' : 'B') + (STATE.mouthOpen ? 'A' : 'B');
@@ -1099,8 +1137,6 @@ function actualizarAvatar() {
     return;
   }
 
-  // Si es la misma pose que ya está renderizada, no hace falta esperar
-  // (ej. cambio de ojos/boca dentro de la misma pose).
   if (targetPoseId === STATE.renderedPoseId) {
     const fallbackKey = imageKey(STATE.avatar, targetPoseId, 'AA');
     const fallbackImg = STATE.imageCache[fallbackKey];
@@ -1110,15 +1146,9 @@ function actualizarAvatar() {
   if (STATE.imageStatus[key] !== 'missing') {
     getImage(STATE.avatar, targetPoseId, variant, (img, ok) => {
       if (ok) {
-        // Solo aplicar si seguimos queriendo esa pose
-        if (STATE.poseId === targetPoseId) {
-          setAvatarSrc(img.src, targetPoseId);
-        }
+        if (STATE.poseId === targetPoseId) setAvatarSrc(img.src, targetPoseId);
       } else {
-        // Imagen faltante → fallback SVG
-        if (STATE.poseId === targetPoseId) {
-          setAvatarSrc(buildFallbackSVG(targetPoseId, variant), targetPoseId);
-        }
+        if (STATE.poseId === targetPoseId) setAvatarSrc(buildFallbackSVG(targetPoseId, variant), targetPoseId);
       }
     });
     return;
@@ -1185,7 +1215,7 @@ function updatePosesVisibility() {
    ============================================================ */
 function setPose(poseId, userInitiated) {
   STATE.poseId = poseId;
-  actualizarAvatar();       // esto actualizará renderedPoseId cuando la imagen esté lista
+  actualizarAvatar();
   updateStatusRow();
   refreshLivePoses();
   updateTransformUI();
@@ -1216,14 +1246,14 @@ function saveStateNow() {
       blinkBase: STATE.blinkBase,
       oscVertical: STATE.oscVertical,
       oscHorizontal: STATE.oscHorizontal,
-      vibration: STATE.vibration,
-      vibBoostMultiplier: STATE.vibBoostMultiplier,
       oscSpeed: STATE.oscSpeed,
       bgColor: STATE.bgColor,
       zoom: STATE.zoom,
       offsetX: STATE.offsetX,
       offsetY: STATE.offsetY,
-      poseTransform: STATE.poseTransform,
+      vibration: STATE.vibration,
+      vibBoostMultiplier: STATE.vibBoostMultiplier,
+      poseOverride: STATE.poseOverride,
       allActive: STATE.allActive,
       avatarShadow: STATE.avatarShadow,
       transformPanelOpen: STATE.transformPanelOpen,
@@ -1246,18 +1276,20 @@ function loadState() {
     STATE.blinkBase           = d.blinkBase ?? 5;
     STATE.oscVertical         = d.oscVertical ?? 2;
     STATE.oscHorizontal       = d.oscHorizontal ?? 0;
-    STATE.vibration           = d.vibration ?? 0.3;
-    STATE.vibBoostMultiplier  = d.vibBoostMultiplier ?? 1.5;
     STATE.oscSpeed            = d.oscSpeed ?? 1;
     STATE.bgColor             = d.bgColor ?? DEFAULT_BG;
     STATE.zoom                = d.zoom ?? 1.0;
     STATE.offsetX             = d.offsetX ?? 0;
     STATE.offsetY             = d.offsetY ?? 0;
-    STATE.poseTransform       = (d.poseTransform && typeof d.poseTransform === 'object') ? d.poseTransform : {};
+    STATE.vibration           = d.vibration ?? 0.3;
+    STATE.vibBoostMultiplier  = d.vibBoostMultiplier ?? 1.5;
+    STATE.poseOverride        = (d.poseOverride && typeof d.poseOverride === 'object') ? d.poseOverride : {};
     STATE.allActive           = {
-      zoom: (d.allActive && typeof d.allActive.zoom === 'boolean') ? d.allActive.zoom : true,
-      x:    (d.allActive && typeof d.allActive.x    === 'boolean') ? d.allActive.x    : true,
-      y:    (d.allActive && typeof d.allActive.y    === 'boolean') ? d.allActive.y    : true
+      zoom:  (d.allActive && typeof d.allActive.zoom  === 'boolean') ? d.allActive.zoom  : false,
+      x:     (d.allActive && typeof d.allActive.x     === 'boolean') ? d.allActive.x     : false,
+      y:     (d.allActive && typeof d.allActive.y     === 'boolean') ? d.allActive.y     : false,
+      vib:   (d.allActive && typeof d.allActive.vib   === 'boolean') ? d.allActive.vib   : false,
+      boost: (d.allActive && typeof d.allActive.boost === 'boolean') ? d.allActive.boost : false
     };
     STATE.avatarShadow        = d.avatarShadow ?? false;
     STATE.transformPanelOpen  = d.transformPanelOpen ?? false;
@@ -1733,7 +1765,7 @@ $('btn-sync-clear2').addEventListener('click', async () => {
 });
 
 /* ============================================================
-   VIBRACIÓN BOOST
+   VIBRACIÓN BOOST (toggle global)
    ============================================================ */
 function updateVibeToggleUI() {
   if (STATE.vibBoostActive) {
@@ -1864,12 +1896,12 @@ btnMic.addEventListener('click', () => {
 });
 
 /* ============================================================
-   PARPADEO (base 3–15s + jitter aleatorio de +0 a +3s)
+   PARPADEO
    ============================================================ */
 let blinkTimer = null;
 function nextBlinkDelay() {
-  const base = STATE.blinkBase;             // 3–15 segundos
-  const extra = Math.random() * BLINK_JITTER; // 0.00 – 3.00
+  const base = STATE.blinkBase;
+  const extra = Math.random() * BLINK_JITTER;
   return (base + extra) * 1000;
 }
 function scheduleBlink() {
@@ -1888,7 +1920,7 @@ function scheduleBlink() {
 }
 
 /* ============================================================
-   MOVIMIENTO (lee renderedPoseId para atomicidad)
+   MOVIMIENTO — con vibración/boost por pose
    ============================================================ */
 let phase = 0;
 let vibTargetX = 0, vibTargetY = 0;
@@ -1897,8 +1929,8 @@ let lastVibUpdate = 0;
 let frozenTransform = 'translate3d(0,0,0) scale(1)';
 
 function buildTransform(offsetX, offsetY) {
-  const t = effectiveTransform(STATE.renderedPoseId);
-  return `translate3d(${offsetX + t.x}px, ${offsetY + t.y}px, 0) scale(${t.zoom})`;
+  const p = effectiveParams(STATE.renderedPoseId);
+  return `translate3d(${offsetX + p.x}px, ${offsetY + p.y}px, 0) scale(${p.zoom})`;
 }
 function motionLoop(now) {
   now = now || performance.now();
@@ -1913,8 +1945,9 @@ function motionLoop(now) {
 
   if (now - lastVibUpdate > 80) {
     lastVibUpdate = now;
-    const mult = STATE.vibBoostActive ? STATE.vibBoostMultiplier : 1;
-    const amp = STATE.vibration * mult * 0.5;
+    const p = effectiveParams(STATE.renderedPoseId);
+    const mult = STATE.vibBoostActive ? p.boost : 1;
+    const amp = p.vib * mult * 0.5;
     vibTargetX = (Math.random() - 0.5) * 2 * amp;
     vibTargetY = (Math.random() - 0.5) * 2 * amp;
   }
@@ -1927,59 +1960,78 @@ function motionLoop(now) {
 }
 
 /* ============================================================
-   TRANSFORM PANEL
+   PANEL DE CONTROLES
    ============================================================ */
-function clampZoom(v) { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)); }
-function clampOffset(v) { return Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, Math.round(v))); }
+function clampZoom(v)  { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)); }
+function clampOffset(v){ return Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, Math.round(v))); }
+function clampVib(v)   { return Math.max(VIB_MIN, Math.min(VIB_MAX, v)); }
+function clampBoost(v) { return Math.max(BOOST_MIN, Math.min(BOOST_MAX, v)); }
 
 function updateTransformUI() {
-  const t = effectiveTransform(STATE.poseId);
-  tpZoom.value = Math.round(t.zoom * 100);
-  tpZoomVal.textContent = Math.round(t.zoom * 100) + '%';
-  tpX.value = Math.round(t.x);
-  tpXVal.textContent = Math.round(t.x) + ' px';
-  tpY.value = Math.round(t.y);
-  tpYVal.textContent = Math.round(t.y) + ' px';
+  const p = effectiveParams(STATE.poseId);
+  tpZoom.value = Math.round(p.zoom * 100);
+  tpZoomVal.textContent = Math.round(p.zoom * 100) + '%';
+  tpX.value = Math.round(p.x);
+  tpXVal.textContent = Math.round(p.x) + ' px';
+  tpY.value = Math.round(p.y);
+  tpYVal.textContent = Math.round(p.y) + ' px';
+  tpVib.value = p.vib;
+  tpVibVal.textContent = p.vib.toFixed(1) + ' px';
+  tpBoost.value = p.boost;
+  tpBoostVal.textContent = p.boost.toFixed(1) + 'x';
 
   document.querySelectorAll('.tp-all-btn').forEach(btn => {
     const f = btn.dataset.field;
     btn.classList.toggle('active', !!STATE.allActive[f]);
   });
 
-  const ov = STATE.poseTransform[STATE.poseId] || {};
-  const hasOv = Object.keys(ov).length > 0;
-  const totalOv = Object.keys(STATE.poseTransform).length;
+  const ov = STATE.poseOverride[STATE.poseId] || {};
+  const ovKeys = Object.keys(ov);
+  const hasOv = ovKeys.length > 0;
+  const totalOv = Object.keys(STATE.poseOverride).length;
   tpStatus.textContent =
     `Pose: ${STATE.poseId}${hasOv ? ' 🔒' : ''} · ` +
     `Con override: ${totalOv}`;
 
   transformInfo.textContent =
-    `Global: ${Math.round(STATE.zoom * 100)}% | X ${STATE.offsetX} | Y ${STATE.offsetY}\n` +
-    `Pose actual (${STATE.poseId}): ` +
-    `${Math.round(t.zoom * 100)}% | X ${Math.round(t.x)} | Y ${Math.round(t.y)}` +
-    (hasOv ? ' · 🔒 override' : '') +
+    `Global → Zoom: ${Math.round(STATE.zoom * 100)}% · X: ${STATE.offsetX} · Y: ${STATE.offsetY} · Vib: ${STATE.vibration.toFixed(1)} · Boost: ${STATE.vibBoostMultiplier.toFixed(1)}x\n` +
+    `Pose actual (${STATE.poseId}) → ` +
+    `Zoom: ${Math.round(p.zoom * 100)}% · X: ${Math.round(p.x)} · Y: ${Math.round(p.y)} · Vib: ${p.vib.toFixed(1)} · Boost: ${p.boost.toFixed(1)}x` +
+    (hasOv ? ` · 🔒 override (${ovKeys.join(', ')})` : '') +
     `\nPoses con override: ${totalOv}`;
 }
 
-function applyTransformChange(field, value) {
-  if (field === 'zoom') value = clampZoom(value);
-  else value = clampOffset(value);
+function applyParamChange(field, value) {
+  // Clamps según campo
+  if (field === 'zoom')  value = clampZoom(value);
+  else if (field === 'x') value = clampOffset(value);
+  else if (field === 'y') value = clampOffset(value);
+  else if (field === 'vib')   value = clampVib(value);
+  else if (field === 'boost') value = clampBoost(value);
 
   if (STATE.allActive[field]) {
-    if (field === 'zoom') STATE.zoom = value;
-    else if (field === 'x') STATE.offsetX = value;
-    else if (field === 'y') STATE.offsetY = value;
+    // Aplicar al global
+    switch (field) {
+      case 'zoom':  STATE.zoom = value; break;
+      case 'x':     STATE.offsetX = value; break;
+      case 'y':     STATE.offsetY = value; break;
+      case 'vib':   STATE.vibration = value; break;
+      case 'boost': STATE.vibBoostMultiplier = value; break;
+    }
   } else {
-    if (!STATE.poseTransform[STATE.poseId]) STATE.poseTransform[STATE.poseId] = {};
-    STATE.poseTransform[STATE.poseId][field] = value;
+    // Override de la pose actual
+    if (!STATE.poseOverride[STATE.poseId]) STATE.poseOverride[STATE.poseId] = {};
+    STATE.poseOverride[STATE.poseId][field] = value;
   }
   updateTransformUI();
   scheduleSave();
 }
 
-tpZoom.addEventListener('input', e => applyTransformChange('zoom', +e.target.value / 100));
-tpX.addEventListener('input', e => applyTransformChange('x', +e.target.value));
-tpY.addEventListener('input', e => applyTransformChange('y', +e.target.value));
+tpZoom.addEventListener('input',  e => applyParamChange('zoom',  +e.target.value / 100));
+tpX.addEventListener('input',     e => applyParamChange('x',     +e.target.value));
+tpY.addEventListener('input',     e => applyParamChange('y',     +e.target.value));
+tpVib.addEventListener('input',   e => applyParamChange('vib',   +e.target.value));
+tpBoost.addEventListener('input', e => applyParamChange('boost', +e.target.value));
 
 document.querySelectorAll('.tp-all-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2000,37 +2052,39 @@ tpToggle.addEventListener('click', () => {
   scheduleSave();
 });
 
-function clearPoseTransform(poseId) {
-  if (STATE.poseTransform[poseId]) delete STATE.poseTransform[poseId];
+function clearPoseOverride(poseId) {
+  if (STATE.poseOverride[poseId]) delete STATE.poseOverride[poseId];
   updateTransformUI();
   scheduleSave();
 }
-function clearAllTransforms() {
-  STATE.poseTransform = {};
+function clearAllOverrides() {
+  STATE.poseOverride = {};
   STATE.zoom = 1.0;
   STATE.offsetX = 0;
   STATE.offsetY = 0;
+  STATE.vibration = 0.3;
+  STATE.vibBoostMultiplier = 1.5;
   updateTransformUI();
   scheduleSave();
 }
 
 $('tp-clear-pose').addEventListener('click', () => {
-  clearPoseTransform(STATE.poseId);
+  clearPoseOverride(STATE.poseId);
   showHint(`🧹 Override de "${STATE.poseId}" borrado`);
 });
 $('tp-clear-all').addEventListener('click', () => {
-  if (!confirm('¿Limpiar TODAS las transformaciones (zoom, X, Y) de TODAS las poses?')) return;
-  clearAllTransforms();
-  showHint('🧹 Todas las transformaciones reseteadas');
+  if (!confirm('¿Limpiar TODOS los overrides de TODAS las poses y resetear globales?')) return;
+  clearAllOverrides();
+  showHint('🧹 Todos los overrides reseteados');
 });
 $('btn-clear-pose-transform').addEventListener('click', () => {
-  clearPoseTransform(STATE.poseId);
+  clearPoseOverride(STATE.poseId);
   showHint(`🧹 Override de "${STATE.poseId}" borrado`);
 });
 $('btn-clear-all-transform').addEventListener('click', () => {
-  if (!confirm('¿Limpiar TODAS las transformaciones (zoom, X, Y) de TODAS las poses?')) return;
-  clearAllTransforms();
-  showHint('🧹 Todas las transformaciones reseteadas');
+  if (!confirm('¿Limpiar TODOS los overrides de TODAS las poses y resetear globales?')) return;
+  clearAllOverrides();
+  showHint('🧹 Todos los overrides reseteados');
 });
 
 /* ============================================================
@@ -2108,16 +2162,6 @@ $('oscx').addEventListener('input', e => {
   $('val-oscx').textContent = STATE.oscHorizontal + ' px';
   scheduleSave();
 });
-$('vib').addEventListener('input', e => {
-  STATE.vibration = +e.target.value;
-  $('val-vib').textContent = STATE.vibration.toFixed(1) + ' px';
-  scheduleSave();
-});
-$('vibboost').addEventListener('input', e => {
-  STATE.vibBoostMultiplier = +e.target.value;
-  $('val-vibboost').textContent = STATE.vibBoostMultiplier.toFixed(1) + 'x';
-  scheduleSave();
-});
 $('osct').addEventListener('input', e => {
   STATE.oscSpeed = +e.target.value;
   $('val-osct').textContent = STATE.oscSpeed.toFixed(1) + 'x';
@@ -2162,8 +2206,10 @@ $('btn-wipe').addEventListener('click', async () => {
   STATE.zoom = 1.0;
   STATE.offsetX = 0;
   STATE.offsetY = 0;
-  STATE.poseTransform = {};
-  STATE.allActive = { zoom: true, x: true, y: true };
+  STATE.vibration = 0.3;
+  STATE.vibBoostMultiplier = 1.5;
+  STATE.poseOverride = {};
+  STATE.allActive = { zoom: false, x: false, y: false, vib: false, boost: false };
   STATE.avatarShadow = false;
   STATE.posesVisiblePrerecorded = false;
   STATE.transformPanelOpen = false;
@@ -2227,8 +2273,6 @@ async function init() {
   $('val-blink-max').textContent = STATE.blinkBase + BLINK_JITTER;
   $('oscv').value = STATE.oscVertical;      $('val-oscv').textContent = STATE.oscVertical + ' px';
   $('oscx').value = STATE.oscHorizontal;    $('val-oscx').textContent = STATE.oscHorizontal + ' px';
-  $('vib').value = STATE.vibration;         $('val-vib').textContent = STATE.vibration.toFixed(1) + ' px';
-  $('vibboost').value = STATE.vibBoostMultiplier; $('val-vibboost').textContent = STATE.vibBoostMultiplier.toFixed(1) + 'x';
   $('osct').value = STATE.oscSpeed;         $('val-osct').textContent = STATE.oscSpeed.toFixed(1) + 'x';
   $('avatar-shadow').checked = STATE.avatarShadow;
   avatarImg.classList.toggle('with-shadow', STATE.avatarShadow);
