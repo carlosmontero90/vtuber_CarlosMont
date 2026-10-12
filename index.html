@@ -28,6 +28,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* ===== TOP BAR ===== */
   #top-bar {
     flex-shrink: 0;
     padding: 8px 10px 8px;
@@ -38,7 +39,6 @@
     border-bottom-right-radius: 18px;
     z-index: 10;
   }
-
   #main-row {
     display: flex;
     gap: 6px;
@@ -62,6 +62,12 @@
     font-size: 20px;
     padding: 8px 0;
   }
+  #btn-poses {
+    flex: 0 0 62px;
+    font-size: 15px;
+    padding: 12px 0;
+  }
+  #btn-poses.hidden { display: none; }
   #mode-badge {
     flex: 0 0 auto;
     padding: 12px 14px;
@@ -182,103 +188,160 @@
     filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
   }
 
-  /* ===== ZOOM BAR (lateral izquierda) ===== */
-  #zoom-bar {
+  /* ===== TRANSFORM PANEL (barra flotante) ===== */
+  #transform-toggle {
     position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    background: rgba(0,0,0,0.35);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 10px 8px;
-    border-radius: 16px;
-    z-index: 20;
-  }
-  #zoom-bar button {
-    width: 34px; height: 34px;
+    top: 10px;
+    left: 10px;
+    width: 44px; height: 44px;
     border-radius: 50%;
     border: 2px solid rgba(255,255,255,0.35);
-    background: rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: #fff;
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 20px;
     cursor: pointer;
+    z-index: 30;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    line-height: 1;
   }
-  #zoom-bar button:active { transform: scale(0.92); }
-  #zoom-slider-wrap {
-    position: relative;
-    height: 140px;
-    width: 34px;
+  #transform-toggle:active { transform: scale(0.92); }
+  #transform-toggle.active {
+    background: #4ade80;
+    color: #0f172a;
+    border-color: #fff;
+  }
+
+  #transform-panel {
+    position: absolute;
+    top: 62px;
+    left: 10px;
+    width: 240px;
+    max-width: calc(100vw - 20px);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 12px;
+    z-index: 29;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  #transform-panel.open { display: flex; }
+
+  .tp-row {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
   }
-  #zoom-slider {
+  .tp-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0.9;
+  }
+  .tp-head .value {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+    font-weight: 600;
+  }
+  .tp-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .tp-slider {
+    flex: 1;
     -webkit-appearance: none;
     appearance: none;
-    width: 140px;
+    height: 22px;
+    background: transparent;
+    outline: none;
+  }
+  .tp-slider::-webkit-slider-runnable-track {
     height: 6px;
     background: rgba(255,255,255,0.25);
     border-radius: 3px;
-    transform: rotate(-90deg);
-    transform-origin: center;
-    position: absolute;
-    outline: none;
   }
-  #zoom-slider::-webkit-slider-thumb {
+  .tp-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 22px; height: 22px;
+    width: 20px; height: 20px;
     border-radius: 50%;
     background: #fff;
+    margin-top: -7px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     cursor: pointer;
   }
-  #zoom-slider::-moz-range-thumb {
-    width: 22px; height: 22px;
+  .tp-slider::-moz-range-track {
+    height: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 3px;
+  }
+  .tp-slider::-moz-range-thumb {
+    width: 20px; height: 20px;
     border-radius: 50%;
     background: #fff;
     border: none;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     cursor: pointer;
   }
-  #zoom-label {
-    font-size: 11px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: rgba(255,255,255,0.9);
-  }
-  #zoom-all {
+  .tp-all-btn {
     width: 40px;
-    height: 26px;
-    border-radius: 8px;
+    height: 24px;
+    border-radius: 7px;
     border: 2px solid rgba(255,255,255,0.35);
     background: rgba(255,255,255,0.12);
     color: #fff;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     cursor: pointer;
     padding: 0;
+    flex-shrink: 0;
     transition: all 0.15s;
   }
-  #zoom-all.active {
+  .tp-all-btn.active {
     background: #4ade80;
     border-color: #fff;
     color: #0f172a;
   }
-  #zoom-all:active { transform: scale(0.92); }
+  .tp-all-btn:active { transform: scale(0.92); }
 
-  /* ===== LIVE POSES (Modo 2) ===== */
+  .tp-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.15);
+    margin: 2px 0;
+  }
+  .tp-status {
+    font-size: 10.5px;
+    opacity: 0.75;
+    line-height: 1.4;
+    text-align: center;
+  }
+  .tp-clear {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .tp-clear:active { transform: scale(0.97); }
+  .tp-clear.danger { background: #dc2626; }
+
+  /* ===== POSES FLOATING (Modo 1 toggle, Modo 2 auto) ===== */
   #live-poses {
     position: absolute;
     display: none;
@@ -358,6 +421,7 @@
     }
   }
 
+  /* ===== OVERLAYS ===== */
   .overlay {
     position: fixed;
     inset: 0;
@@ -605,6 +669,7 @@
   <div id="top-bar">
     <div id="main-row">
       <div id="mode-badge">📼 PREGRABADO</div>
+      <button id="btn-poses" class="main-btn" title="Mostrar/ocultar poses">🎭</button>
       <button id="btn-settings" class="main-btn" title="Ajustes">⚙️</button>
     </div>
 
@@ -633,14 +698,45 @@
       <img id="avatar-image" alt="avatar" src="" />
     </div>
 
-    <div id="zoom-bar">
-      <button id="zoom-in" title="Acercar">+</button>
-      <div id="zoom-slider-wrap">
-        <input type="range" id="zoom-slider" min="50" max="300" value="100" step="5">
+    <button id="transform-toggle" title="Transformación">🎛️</button>
+    <div id="transform-panel">
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>🔍 Zoom</span>
+          <span class="value" id="tp-zoom-val">100%</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-zoom" min="50" max="300" step="5" value="100">
+          <button class="tp-all-btn" id="tp-zoom-all" data-field="zoom">ALL</button>
+        </div>
       </div>
-      <div id="zoom-label">100%</div>
-      <button id="zoom-out" title="Alejar">−</button>
-      <button id="zoom-all" class="active" title="Aplicar zoom a todas las poses">ALL</button>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>↔️ X</span>
+          <span class="value" id="tp-x-val">0 px</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-x" min="-400" max="400" step="2" value="0">
+          <button class="tp-all-btn" id="tp-x-all" data-field="x">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>↕️ Y</span>
+          <span class="value" id="tp-y-val">0 px</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-y" min="-400" max="400" step="2" value="0">
+          <button class="tp-all-btn" id="tp-y-all" data-field="y">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-divider"></div>
+      <div class="tp-status" id="tp-status">—</div>
+      <button class="tp-clear" id="tp-clear-pose">🧹 Limpiar esta pose</button>
+      <button class="tp-clear danger" id="tp-clear-all">🧹 Limpiar todas las poses</button>
     </div>
 
     <div id="live-poses"></div>
@@ -750,10 +846,11 @@
       <button class="action-btn secondary" id="btn-reload-poses">🔄 Recargar poses</button>
     </div>
 
-    <div class="section-title">Zoom guardado por pose</div>
-    <div class="file-info" id="zoom-info">—</div>
+    <div class="section-title">Transformación por pose</div>
+    <div class="file-info" id="transform-info">—</div>
     <div class="action-row">
-      <button class="action-btn secondary" id="btn-clear-pose-zoom">🧹 Borrar zooms individuales</button>
+      <button class="action-btn secondary" id="btn-clear-pose-transform">🧹 Limpiar esta pose</button>
+      <button class="action-btn danger" id="btn-clear-all-transform">🧹 Limpiar todas</button>
     </div>
 
     <div class="section-title">Almacenamiento</div>
@@ -802,6 +899,9 @@ const POSES = [
 const POSE_MAP = Object.fromEntries(POSES.map(p => [p.id, p]));
 const VARIANTS = ['AA', 'AB', 'BA', 'BB'];
 
+const ZOOM_MIN = 0.5, ZOOM_MAX = 3.0;
+const OFFSET_MIN = -400, OFFSET_MAX = 400;
+
 /* ============================================================
    ESTADO
    ============================================================ */
@@ -820,13 +920,18 @@ const STATE = {
   vibBoostActive: false,
   oscSpeed: 1.0,
   bgColor: DEFAULT_BG,
-  /* Zoom global y overrides por pose */
+  /* Transformaciones */
   zoom: 1.0,
-  poseZoom: {},              // { [poseId]: zoom }
-  zoomAllActive: true,       // modo edición: true = afecta global; false = afecta solo pose actual
+  offsetX: 0,
+  offsetY: 0,
+  poseTransform: {},        // { [poseId]: { zoom?, x?, y? } }
+  allActive: { zoom: true, x: true, y: true },   // modo edición por campo
+  /* UI */
   avatarShadow: false,
   settingsOpen: false,
+  transformPanelOpen: false,
   mode: 'prerecorded',
+  posesVisiblePrerecorded: false,   // visibilidad poses en Modo 1
   imageCache: {},
   imageStatus: {},
   syncEntries: [],
@@ -835,12 +940,14 @@ const STATE = {
   currentSyncIndex: -1
 };
 
-/* Devuelve el zoom efectivo para una pose */
-function effectiveZoom(poseId) {
-  if (Object.prototype.hasOwnProperty.call(STATE.poseZoom, poseId)) {
-    return STATE.poseZoom[poseId];
-  }
-  return STATE.zoom;
+/* Devuelve la transformación efectiva de una pose */
+function effectiveTransform(poseId) {
+  const ov = STATE.poseTransform[poseId] || {};
+  return {
+    zoom: (typeof ov.zoom === 'number') ? ov.zoom : STATE.zoom,
+    x:    (typeof ov.x    === 'number') ? ov.x    : STATE.offsetX,
+    y:    (typeof ov.y    === 'number') ? ov.y    : STATE.offsetY
+  };
 }
 
 /* ============================================================
@@ -853,7 +960,7 @@ const appEl       = $('app');
 const micLevel    = $('mic-level');
 const hintEl      = $('hint');
 const posesInfo   = $('poses-info');
-const zoomInfo    = $('zoom-info');
+const transformInfo = $('transform-info');
 const statusPose  = $('status-pose');
 const statusSync  = $('status-sync');
 const syncInfo    = $('sync-info');
@@ -861,14 +968,22 @@ const audioInfo   = $('audio-info');
 const overlaySettings = $('settings-overlay');
 const modeBadge   = $('mode-badge');
 const livePosesEl = $('live-poses');
-const zoomSlider  = $('zoom-slider');
-const zoomLabel   = $('zoom-label');
-const zoomAllBtn  = $('zoom-all');
+const btnPosesTop = $('btn-poses');
 const btnVibeToggle = $('btn-vibe-toggle');
 const btnMic      = $('btn-mic');
 const permBox     = $('perm-box');
 const permTitle   = $('perm-title');
 const permBody    = $('perm-body');
+
+const tpToggle = $('transform-toggle');
+const tpPanel  = $('transform-panel');
+const tpZoom   = $('tp-zoom');
+const tpX      = $('tp-x');
+const tpY      = $('tp-y');
+const tpZoomVal = $('tp-zoom-val');
+const tpXVal    = $('tp-x-val');
+const tpYVal    = $('tp-y-val');
+const tpStatus  = $('tp-status');
 
 /* ============================================================
    INDEXEDDB
@@ -913,7 +1028,7 @@ async function idbDelete(key) {
 }
 
 /* ============================================================
-   IMÁGENES LAZY
+   IMÁGENES
    ============================================================ */
 function imageKey(avatar, poseId, variant) {
   return `${avatar}_${poseId}_${variant}`;
@@ -925,7 +1040,6 @@ function getImage(avatar, poseId, variant, onReady) {
   const key = imageKey(avatar, poseId, variant);
   if (STATE.imageCache[key]) return STATE.imageCache[key];
   if (STATE.imageStatus[key] === 'missing') return null;
-
   const img = new Image();
   img.onload = () => {
     STATE.imageStatus[key] = 'loaded';
@@ -958,7 +1072,7 @@ async function preloadAllPoses(avatar) {
 }
 
 /* ============================================================
-   RENDER DEL AVATAR
+   RENDER AVATAR
    ============================================================ */
 function currentVariant() {
   return (STATE.eyesOpen ? 'A' : 'B') + (STATE.mouthOpen ? 'A' : 'B');
@@ -967,11 +1081,7 @@ function actualizarAvatar() {
   const variant = currentVariant();
   const key = imageKey(STATE.avatar, STATE.poseId, variant);
   const cached = STATE.imageCache[key];
-
-  if (cached) {
-    avatarImg.src = cached.src;
-    return;
-  }
+  if (cached) { avatarImg.src = cached.src; return; }
 
   if (STATE.imageStatus[key] !== 'missing') {
     getImage(STATE.avatar, STATE.poseId, variant, (img, ok) => {
@@ -983,7 +1093,6 @@ function actualizarAvatar() {
       }
     });
   }
-
   if (STATE.poseId !== 'normal') {
     const normalKey = imageKey(STATE.avatar, 'normal', variant);
     if (STATE.imageCache[normalKey]) {
@@ -991,7 +1100,6 @@ function actualizarAvatar() {
       return;
     }
   }
-
   const pose = POSE_MAP[STATE.poseId] || { label: STATE.poseId, emoji: '?' };
   avatarImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
@@ -1008,7 +1116,7 @@ function actualizarAvatar() {
 }
 
 /* ============================================================
-   LIVE POSES
+   POSES FLOTANTES (Modo 1 toggle / Modo 2 auto)
    ============================================================ */
 let livePosesBuilt = false;
 function buildLivePoses() {
@@ -1018,9 +1126,7 @@ function buildLivePoses() {
     btn.className = 'live-pose-btn';
     btn.dataset.pose = pose.id;
     btn.innerHTML = `<span class="emoji">${pose.emoji}</span><span class="name">${pose.label}</span>`;
-    btn.addEventListener('click', () => {
-      setPose(pose.id, true);
-    });
+    btn.addEventListener('click', () => setPose(pose.id, true));
     livePosesEl.appendChild(btn);
   });
   livePosesBuilt = true;
@@ -1029,9 +1135,24 @@ function buildLivePoses() {
 function refreshLivePoses() {
   if (!livePosesBuilt) return;
   livePosesEl.querySelectorAll('.live-pose-btn').forEach(btn => {
-    const poseId = btn.dataset.pose;
-    btn.classList.toggle('active', poseId === STATE.poseId);
+    btn.classList.toggle('active', btn.dataset.pose === STATE.poseId);
   });
+}
+function updatePosesVisibility() {
+  let show = false;
+  if (STATE.mode === 'live') show = true;
+  else if (STATE.mode === 'prerecorded') show = STATE.posesVisiblePrerecorded;
+
+  if (show) {
+    if (!livePosesBuilt) buildLivePoses();
+    livePosesEl.classList.add('visible');
+    refreshLivePoses();
+  } else {
+    livePosesEl.classList.remove('visible');
+  }
+
+  // El botón "🎭" solo visible en Modo 1
+  btnPosesTop.classList.toggle('hidden', STATE.mode !== 'prerecorded');
 }
 
 /* ============================================================
@@ -1042,7 +1163,7 @@ function setPose(poseId, userInitiated) {
   actualizarAvatar();
   updateStatusRow();
   refreshLivePoses();
-  updateZoomUI();
+  updateTransformUI();
   preloadPose(STATE.avatar, poseId);
 }
 function updateStatusRow() {
@@ -1075,9 +1196,13 @@ function saveStateNow() {
       oscSpeed: STATE.oscSpeed,
       bgColor: STATE.bgColor,
       zoom: STATE.zoom,
-      poseZoom: STATE.poseZoom,
-      zoomAllActive: STATE.zoomAllActive,
-      avatarShadow: STATE.avatarShadow
+      offsetX: STATE.offsetX,
+      offsetY: STATE.offsetY,
+      poseTransform: STATE.poseTransform,
+      allActive: STATE.allActive,
+      avatarShadow: STATE.avatarShadow,
+      transformPanelOpen: STATE.transformPanelOpen,
+      posesVisiblePrerecorded: STATE.posesVisiblePrerecorded
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (err) {
@@ -1101,16 +1226,24 @@ function loadState() {
     STATE.oscSpeed            = d.oscSpeed ?? 1;
     STATE.bgColor             = d.bgColor ?? DEFAULT_BG;
     STATE.zoom                = d.zoom ?? 1.0;
-    STATE.poseZoom            = (d.poseZoom && typeof d.poseZoom === 'object') ? d.poseZoom : {};
-    STATE.zoomAllActive       = d.zoomAllActive ?? true;
+    STATE.offsetX             = d.offsetX ?? 0;
+    STATE.offsetY             = d.offsetY ?? 0;
+    STATE.poseTransform       = (d.poseTransform && typeof d.poseTransform === 'object') ? d.poseTransform : {};
+    STATE.allActive           = {
+      zoom: (d.allActive && typeof d.allActive.zoom === 'boolean') ? d.allActive.zoom : true,
+      x:    (d.allActive && typeof d.allActive.x    === 'boolean') ? d.allActive.x    : true,
+      y:    (d.allActive && typeof d.allActive.y    === 'boolean') ? d.allActive.y    : true
+    };
     STATE.avatarShadow        = d.avatarShadow ?? false;
+    STATE.transformPanelOpen  = d.transformPanelOpen ?? false;
+    STATE.posesVisiblePrerecorded = d.posesVisiblePrerecorded ?? false;
     if (!POSE_MAP[STATE.poseId]) STATE.poseId = 'normal';
     return true;
   } catch (e) { console.warn(e); return false; }
 }
 
 /* ============================================================
-   SINCRONIZACIÓN
+   SYNC
    ============================================================ */
 function parseTime(str) {
   const parts = str.split(':').map(s => parseFloat(s));
@@ -1142,7 +1275,6 @@ function parseSyncFile(text) {
 
     const parts = line.split(/\s+/);
     if (parts.length < 2) continue;
-
     const t = parseTime(parts[0]);
     if (!isFinite(t)) continue;
 
@@ -1157,20 +1289,14 @@ function parseSyncFile(text) {
       const flag = parts[2].toUpperCase();
       if (flag === 'V') boost = true;
       else if (flag === 'N') boost = false;
-      else console.warn(`Flag desconocido: "${parts[2]}" (asumo N)`);
     }
-
     entries.push({ time: t, poseId, boost, text: quotedText });
   }
-
   entries.sort((a, b) => a.time - b.time);
   const dedup = [];
   for (const e of entries) {
-    if (dedup.length && dedup[dedup.length-1].time === e.time) {
-      dedup[dedup.length-1] = e;
-    } else {
-      dedup.push(e);
-    }
+    if (dedup.length && dedup[dedup.length-1].time === e.time) dedup[dedup.length-1] = e;
+    else dedup.push(e);
   }
   return dedup;
 }
@@ -1210,7 +1336,6 @@ function fmtSec(s) {
   const r = Math.floor(s % 60);
   return `${m}:${String(r).padStart(2, '0')}`;
 }
-
 function updateAudioUI() {
   btnAudioPlay.disabled  = !audioLoaded || audioPlaying;
   btnAudioPause.disabled = !audioLoaded || !audioPlaying;
@@ -1400,7 +1525,6 @@ function analizarAudio() {
   micLevel.style.width = Math.min(100, rms * 250) + '%';
   const threshold = 0.35 - (STATE.sensitivity / 100) * 0.33;
   setMouth(rms > threshold);
-
   if (audioPlaying && audioEl && !audioEl.paused) {
     audioRafId = requestAnimationFrame(analizarAudio);
   } else {
@@ -1458,9 +1582,7 @@ function setMode(newMode) {
     if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
     modeBadge.textContent = '🔴 EN VIVO';
     modeBadge.classList.add('live');
-    livePosesEl.classList.add('visible');
-    if (!livePosesBuilt) buildLivePoses();
-    else refreshLivePoses();
+    updatePosesVisibility();
     updateAudioUI();
     updateStatusRow();
     updateSyncUI();
@@ -1471,7 +1593,7 @@ function setMode(newMode) {
     setPose('normal', false);
     modeBadge.textContent = '📼 PREGRABADO';
     modeBadge.classList.remove('live');
-    livePosesEl.classList.remove('visible');
+    updatePosesVisibility();
     updateAudioUI();
     updateStatusRow();
     updateSyncUI();
@@ -1553,9 +1675,7 @@ function setSyncFile(file, opts = {}) {
     activateSync(entries, file.name);
     if (persist) {
       try {
-        await idbPut(IDB_SYNC_KEY, {
-          name: file.name, text, savedAt: Date.now()
-        });
+        await idbPut(IDB_SYNC_KEY, { name: file.name, text, savedAt: Date.now() });
       } catch (err) { console.warn(err); }
     }
     if (!silent) showHint(`📄 ${file.name}: ${entries.length} entradas`);
@@ -1739,7 +1859,7 @@ function scheduleBlink() {
 }
 
 /* ============================================================
-   MOVIMIENTO (con zoom por pose)
+   MOVIMIENTO
    ============================================================ */
 let phase = 0;
 let vibTargetX = 0, vibTargetY = 0;
@@ -1747,11 +1867,9 @@ let vibCurrentX = 0, vibCurrentY = 0;
 let lastVibUpdate = 0;
 let frozenTransform = 'translate3d(0,0,0) scale(1)';
 
-function currentEffectiveZoom() {
-  return effectiveZoom(STATE.poseId);
-}
 function buildTransform(offsetX, offsetY) {
-  return `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${currentEffectiveZoom()})`;
+  const t = effectiveTransform(STATE.poseId);
+  return `translate3d(${offsetX + t.x}px, ${offsetY + t.y}px, 0) scale(${t.zoom})`;
 }
 function motionLoop(now) {
   now = now || performance.now();
@@ -1780,55 +1898,120 @@ function motionLoop(now) {
 }
 
 /* ============================================================
-   ZOOM UI
+   TRANSFORM PANEL
    ============================================================ */
-function clampZoom(v) {
-  return Math.max(0.5, Math.min(3.0, v));
+function clampZoom(v) { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)); }
+function clampOffset(v) { return Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, Math.round(v))); }
+
+function updateTransformUI() {
+  const t = effectiveTransform(STATE.poseId);
+  tpZoom.value = Math.round(t.zoom * 100);
+  tpZoomVal.textContent = Math.round(t.zoom * 100) + '%';
+  tpX.value = Math.round(t.x);
+  tpXVal.textContent = Math.round(t.x) + ' px';
+  tpY.value = Math.round(t.y);
+  tpYVal.textContent = Math.round(t.y) + ' px';
+
+  document.querySelectorAll('.tp-all-btn').forEach(btn => {
+    const f = btn.dataset.field;
+    btn.classList.toggle('active', !!STATE.allActive[f]);
+  });
+
+  const ov = STATE.poseTransform[STATE.poseId] || {};
+  const hasOv = Object.keys(ov).length > 0;
+  const totalOv = Object.keys(STATE.poseTransform).length;
+  tpStatus.textContent =
+    `Pose: ${STATE.poseId}${hasOv ? ' 🔒' : ''} · ` +
+    `Con override: ${totalOv}`;
+
+  transformInfo.textContent =
+    `Global: ${Math.round(STATE.zoom * 100)}% | X ${STATE.offsetX} | Y ${STATE.offsetY}\n` +
+    `Pose actual (${STATE.poseId}): ` +
+    `${Math.round(t.zoom * 100)}% | X ${Math.round(t.x)} | Y ${Math.round(t.y)}` +
+    (hasOv ? ' · 🔒 override' : '') +
+    `\nPoses con override: ${totalOv}`;
 }
-function updateZoomUI() {
-  const z = currentEffectiveZoom();
-  zoomSlider.value = Math.round(z * 100);
-  zoomLabel.textContent = Math.round(z * 100) + '%';
-  zoomAllBtn.classList.toggle('active', STATE.zoomAllActive);
-  updateZoomInfo();
-}
-function updateZoomInfo() {
-  const overrides = Object.keys(STATE.poseZoom).length;
-  const cur = STATE.poseId;
-  const hasOverride = Object.prototype.hasOwnProperty.call(STATE.poseZoom, cur);
-  const curZoom = currentEffectiveZoom();
-  zoomInfo.textContent =
-    `Zoom global: ${Math.round(STATE.zoom * 100)}% · ` +
-    `Pose actual (${cur}): ${Math.round(curZoom * 100)}%` +
-    (hasOverride ? ' · 🔒 override' : '') +
-    ` · Overrides activos: ${overrides}`;
-  zoomInfo.classList.remove('empty');
-}
-function applyZoomToTarget(newZoom) {
-  newZoom = clampZoom(newZoom);
-  if (STATE.zoomAllActive) {
-    STATE.zoom = newZoom;
+
+function applyTransformChange(field, value) {
+  if (field === 'zoom') value = clampZoom(value);
+  else value = clampOffset(value);
+
+  if (STATE.allActive[field]) {
+    if (field === 'zoom') STATE.zoom = value;
+    else if (field === 'x') STATE.offsetX = value;
+    else if (field === 'y') STATE.offsetY = value;
   } else {
-    STATE.poseZoom[STATE.poseId] = newZoom;
+    if (!STATE.poseTransform[STATE.poseId]) STATE.poseTransform[STATE.poseId] = {};
+    STATE.poseTransform[STATE.poseId][field] = value;
   }
-  updateZoomUI();
+  updateTransformUI();
   scheduleSave();
 }
-zoomSlider.addEventListener('input', e => applyZoomToTarget(+e.target.value / 100));
-$('zoom-in').addEventListener('click', () => applyZoomToTarget(currentEffectiveZoom() + 0.05));
-$('zoom-out').addEventListener('click', () => applyZoomToTarget(currentEffectiveZoom() - 0.05));
-zoomAllBtn.addEventListener('click', () => {
-  STATE.zoomAllActive = !STATE.zoomAllActive;
-  updateZoomUI();
+
+tpZoom.addEventListener('input', e => applyTransformChange('zoom', +e.target.value / 100));
+tpX.addEventListener('input', e => applyTransformChange('x', +e.target.value));
+tpY.addEventListener('input', e => applyTransformChange('y', +e.target.value));
+
+document.querySelectorAll('.tp-all-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const f = btn.dataset.field;
+    STATE.allActive[f] = !STATE.allActive[f];
+    updateTransformUI();
+    scheduleSave();
+    showHint(STATE.allActive[f]
+      ? `ALL ${f.toUpperCase()} ON: cambios afectan a todas`
+      : `ALL ${f.toUpperCase()} OFF: cambios solo a "${STATE.poseId}"`);
+  });
+});
+
+tpToggle.addEventListener('click', () => {
+  STATE.transformPanelOpen = !STATE.transformPanelOpen;
+  tpPanel.classList.toggle('open', STATE.transformPanelOpen);
+  tpToggle.classList.toggle('active', STATE.transformPanelOpen);
   scheduleSave();
 });
 
-$('btn-clear-pose-zoom').addEventListener('click', () => {
-  if (!confirm('¿Borrar todos los zooms individuales por pose?')) return;
-  STATE.poseZoom = {};
-  updateZoomUI();
+function clearPoseTransform(poseId) {
+  if (STATE.poseTransform[poseId]) delete STATE.poseTransform[poseId];
+  updateTransformUI();
   scheduleSave();
-  showHint('Zooms individuales borrados');
+}
+function clearAllTransforms() {
+  STATE.poseTransform = {};
+  STATE.zoom = 1.0;
+  STATE.offsetX = 0;
+  STATE.offsetY = 0;
+  updateTransformUI();
+  scheduleSave();
+}
+
+$('tp-clear-pose').addEventListener('click', () => {
+  clearPoseTransform(STATE.poseId);
+  showHint(`🧹 Override de "${STATE.poseId}" borrado`);
+});
+$('tp-clear-all').addEventListener('click', () => {
+  if (!confirm('¿Limpiar TODAS las transformaciones (zoom, X, Y) de TODAS las poses?')) return;
+  clearAllTransforms();
+  showHint('🧹 Todas las transformaciones reseteadas');
+});
+$('btn-clear-pose-transform').addEventListener('click', () => {
+  clearPoseTransform(STATE.poseId);
+  showHint(`🧹 Override de "${STATE.poseId}" borrado`);
+});
+$('btn-clear-all-transform').addEventListener('click', () => {
+  if (!confirm('¿Limpiar TODAS las transformaciones (zoom, X, Y) de TODAS las poses?')) return;
+  clearAllTransforms();
+  showHint('🧹 Todas las transformaciones reseteadas');
+});
+
+/* ============================================================
+   BOTÓN POSES (Modo 1)
+   ============================================================ */
+btnPosesTop.addEventListener('click', () => {
+  if (STATE.mode !== 'prerecorded') return;
+  STATE.posesVisiblePrerecorded = !STATE.posesVisiblePrerecorded;
+  updatePosesVisibility();
+  scheduleSave();
 });
 
 /* ============================================================
@@ -1837,7 +2020,7 @@ $('btn-clear-pose-zoom').addEventListener('click', () => {
 function openSettings() {
   STATE.settingsOpen = true;
   overlaySettings.classList.add('open');
-  updateZoomInfo();
+  updateTransformUI();
 }
 function closeSettings() {
   STATE.settingsOpen = false;
@@ -1859,7 +2042,7 @@ document.querySelectorAll('.avatar-opt').forEach(btn => {
     STATE.imageStatus = {};
     actualizarAvatar();
     updatePosesInfo();
-    updateZoomInfo();
+    updateTransformUI();
     scheduleSave();
     preloadAllPoses(STATE.avatar).then(() => {
       updatePosesInfo();
@@ -1945,9 +2128,13 @@ $('btn-wipe').addEventListener('click', async () => {
   STATE.avatar = 1;
   STATE.poseId = 'normal';
   STATE.zoom = 1.0;
-  STATE.poseZoom = {};
-  STATE.zoomAllActive = true;
+  STATE.offsetX = 0;
+  STATE.offsetY = 0;
+  STATE.poseTransform = {};
+  STATE.allActive = { zoom: true, x: true, y: true };
   STATE.avatarShadow = false;
+  STATE.posesVisiblePrerecorded = false;
+  STATE.transformPanelOpen = false;
   STATE.imageCache = {};
   STATE.imageStatus = {};
   document.querySelectorAll('.avatar-opt').forEach(b => {
@@ -1955,14 +2142,17 @@ $('btn-wipe').addEventListener('click', async () => {
   });
   avatarImg.classList.remove('with-shadow');
   $('avatar-shadow').checked = false;
-  updateZoomUI();
+  tpPanel.classList.remove('open');
+  tpToggle.classList.remove('active');
+  updateTransformUI();
+  updatePosesVisibility();
   actualizarAvatar();
   updateStatusRow();
   showHint('Todo borrado');
 });
 
 /* ============================================================
-   INFO DE POSES
+   INFO POSES
    ============================================================ */
 function updatePosesInfo() {
   let loaded = 0, missing = 0, unknown = 0;
@@ -2009,7 +2199,9 @@ async function init() {
   $('avatar-shadow').checked = STATE.avatarShadow;
   avatarImg.classList.toggle('with-shadow', STATE.avatarShadow);
 
-  updateZoomUI();
+  tpPanel.classList.toggle('open', STATE.transformPanelOpen);
+  tpToggle.classList.toggle('active', STATE.transformPanelOpen);
+  updateTransformUI();
 
   document.querySelectorAll('.avatar-opt').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.avatar,10) === STATE.avatar);
@@ -2018,6 +2210,7 @@ async function init() {
   STATE.mode = 'prerecorded';
   modeBadge.textContent = '📼 PREGRABADO';
   modeBadge.classList.remove('live');
+  updatePosesVisibility();
 
   updateStatusRow();
   updateSyncUI();
