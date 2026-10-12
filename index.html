@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#00b140">
+<meta name="theme-color" content="#00ff2a">
 <title>VTuber Multi-Modelo</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -14,7 +14,7 @@
     height: 100vh; height: 100dvh;
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #00b140;
+    background: #00ff2a;
     color: #fff;
     user-select: none;
     overscroll-behavior: none;
@@ -22,7 +22,7 @@
   #app {
     display: flex; flex-direction: column;
     height: 100vh; height: 100dvh;
-    background: var(--bg-color, #00b140);
+    background: var(--bg-color, #00ff2a);
     transition: background 0.3s;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -257,6 +257,26 @@
     font-variant-numeric: tabular-nums;
     color: rgba(255,255,255,0.9);
   }
+  #zoom-all {
+    width: 40px;
+    height: 26px;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.15s;
+  }
+  #zoom-all.active {
+    background: #4ade80;
+    border-color: #fff;
+    color: #0f172a;
+  }
+  #zoom-all:active { transform: scale(0.92); }
 
   /* ===== LIVE POSES (Modo 2) ===== */
   #live-poses {
@@ -267,7 +287,6 @@
   }
   #live-poses.visible { display: flex; }
 
-  /* Móvil: fila superior con scroll horizontal */
   #live-poses {
     top: 8px;
     left: 8px;
@@ -319,7 +338,6 @@
     white-space: nowrap;
   }
 
-  /* Escritorio: columna lateral derecha */
   @media (min-width: 720px) {
     #live-poses {
       top: 50%;
@@ -567,7 +585,7 @@
   }
   .avatar-opt.active {
     background: #fff;
-    color: #00b140;
+    color: #00ff2a;
     border-color: #fff;
   }
 
@@ -622,6 +640,7 @@
       </div>
       <div id="zoom-label">100%</div>
       <button id="zoom-out" title="Alejar">−</button>
+      <button id="zoom-all" class="active" title="Aplicar zoom a todas las poses">ALL</button>
     </div>
 
     <div id="live-poses"></div>
@@ -706,7 +725,7 @@
     <div class="section-title">Color de fondo</div>
     <div class="control">
       <div class="color-row">
-        <input type="color" id="bgcolor" value="#00b140">
+        <input type="color" id="bgcolor" value="#00ff2a">
         <span style="font-size:12px;opacity:.8">Verde croma por defecto</span>
       </div>
     </div>
@@ -731,6 +750,12 @@
       <button class="action-btn secondary" id="btn-reload-poses">🔄 Recargar poses</button>
     </div>
 
+    <div class="section-title">Zoom guardado por pose</div>
+    <div class="file-info" id="zoom-info">—</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-clear-pose-zoom">🧹 Borrar zooms individuales</button>
+    </div>
+
     <div class="section-title">Almacenamiento</div>
     <div class="action-row">
       <button class="action-btn danger" id="btn-wipe">🗑️ Borrar TODO</button>
@@ -751,6 +776,7 @@ const IDB_NAME = 'vtuber_db';
 const IDB_STORE = 'files';
 const IDB_AUDIO_KEY = 'last_audio';
 const IDB_SYNC_KEY = 'last_sync';
+const DEFAULT_BG = '#00ff2a';
 
 const POSES = [
   { id: 'normal',         emoji: '😀',       label: 'Normal' },
@@ -793,11 +819,14 @@ const STATE = {
   vibBoostMultiplier: 1.5,
   vibBoostActive: false,
   oscSpeed: 1.0,
-  bgColor: '#00b140',
+  bgColor: DEFAULT_BG,
+  /* Zoom global y overrides por pose */
   zoom: 1.0,
+  poseZoom: {},              // { [poseId]: zoom }
+  zoomAllActive: true,       // modo edición: true = afecta global; false = afecta solo pose actual
   avatarShadow: false,
   settingsOpen: false,
-  mode: 'prerecorded',       // 'prerecorded' | 'live'
+  mode: 'prerecorded',
   imageCache: {},
   imageStatus: {},
   syncEntries: [],
@@ -805,6 +834,14 @@ const STATE = {
   syncFileName: '',
   currentSyncIndex: -1
 };
+
+/* Devuelve el zoom efectivo para una pose */
+function effectiveZoom(poseId) {
+  if (Object.prototype.hasOwnProperty.call(STATE.poseZoom, poseId)) {
+    return STATE.poseZoom[poseId];
+  }
+  return STATE.zoom;
+}
 
 /* ============================================================
    DOM
@@ -816,6 +853,7 @@ const appEl       = $('app');
 const micLevel    = $('mic-level');
 const hintEl      = $('hint');
 const posesInfo   = $('poses-info');
+const zoomInfo    = $('zoom-info');
 const statusPose  = $('status-pose');
 const statusSync  = $('status-sync');
 const syncInfo    = $('sync-info');
@@ -825,6 +863,7 @@ const modeBadge   = $('mode-badge');
 const livePosesEl = $('live-poses');
 const zoomSlider  = $('zoom-slider');
 const zoomLabel   = $('zoom-label');
+const zoomAllBtn  = $('zoom-all');
 const btnVibeToggle = $('btn-vibe-toggle');
 const btnMic      = $('btn-mic');
 const permBox     = $('perm-box');
@@ -969,7 +1008,7 @@ function actualizarAvatar() {
 }
 
 /* ============================================================
-   LIVE POSES (Modo 2)
+   LIVE POSES
    ============================================================ */
 let livePosesBuilt = false;
 function buildLivePoses() {
@@ -981,7 +1020,6 @@ function buildLivePoses() {
     btn.innerHTML = `<span class="emoji">${pose.emoji}</span><span class="name">${pose.label}</span>`;
     btn.addEventListener('click', () => {
       setPose(pose.id, true);
-      // En modo live, la pose dura hasta que el usuario elija otra o salga del modo
     });
     livePosesEl.appendChild(btn);
   });
@@ -1004,6 +1042,7 @@ function setPose(poseId, userInitiated) {
   actualizarAvatar();
   updateStatusRow();
   refreshLivePoses();
+  updateZoomUI();
   preloadPose(STATE.avatar, poseId);
 }
 function updateStatusRow() {
@@ -1036,6 +1075,8 @@ function saveStateNow() {
       oscSpeed: STATE.oscSpeed,
       bgColor: STATE.bgColor,
       zoom: STATE.zoom,
+      poseZoom: STATE.poseZoom,
+      zoomAllActive: STATE.zoomAllActive,
       avatarShadow: STATE.avatarShadow
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1058,8 +1099,10 @@ function loadState() {
     STATE.vibration           = d.vibration ?? 0.3;
     STATE.vibBoostMultiplier  = d.vibBoostMultiplier ?? 1.5;
     STATE.oscSpeed            = d.oscSpeed ?? 1;
-    STATE.bgColor             = d.bgColor ?? '#00b140';
+    STATE.bgColor             = d.bgColor ?? DEFAULT_BG;
     STATE.zoom                = d.zoom ?? 1.0;
+    STATE.poseZoom            = (d.poseZoom && typeof d.poseZoom === 'object') ? d.poseZoom : {};
+    STATE.zoomAllActive       = d.zoomAllActive ?? true;
     STATE.avatarShadow        = d.avatarShadow ?? false;
     if (!POSE_MAP[STATE.poseId]) STATE.poseId = 'normal';
     return true;
@@ -1251,7 +1294,6 @@ async function loadAudioFile(file, opts = {}) {
   audioEl.addEventListener('pause', () => {
     audioPlaying = false;
     if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
-    // Si estamos en live, no cerramos boca por el audio
     if (STATE.mode === 'prerecorded') setMouth(false);
     updateAudioUI();
   });
@@ -1346,7 +1388,6 @@ function clearAudio(silent) {
 }
 function analizarAudio() {
   if (!audioAnalyser || !audioDataArray) return;
-  // Solo actúa en modo pregrabado
   if (STATE.mode !== 'prerecorded') { audioRafId = null; return; }
 
   audioAnalyser.getByteTimeDomainData(audioDataArray);
@@ -1401,14 +1442,13 @@ $('btn-audio-clear').addEventListener('click', async () => {
 });
 
 /* ============================================================
-   MODO (prerecorded / live)
+   MODO
    ============================================================ */
 function setMode(newMode) {
   if (STATE.mode === newMode) return;
   STATE.mode = newMode;
 
   if (newMode === 'live') {
-    // Entrar a live: pausar audio si sonaba, ocultar sync, mostrar poses
     if (audioPlaying) {
       audioEl.pause();
       audioPlaying = false;
@@ -1426,7 +1466,6 @@ function setMode(newMode) {
     updateSyncUI();
     showHint('🔴 Modo En Vivo — micrófono activo');
   } else {
-    // Volver a pregrabado: pose a normal, boost off, re-enganchar sync
     STATE.vibBoostActive = false;
     updateVibeToggleUI();
     setPose('normal', false);
@@ -1436,7 +1475,6 @@ function setMode(newMode) {
     updateAudioUI();
     updateStatusRow();
     updateSyncUI();
-    // Re-aplicar sync a la posición actual del audio
     if (audioLoaded && audioEl) applySyncAtTime(audioEl.currentTime);
     showHint('📼 Modo Pregrabado');
   }
@@ -1658,7 +1696,6 @@ function desactivarMicrofono() {
 }
 function medirAudio() {
   if (!micActive) return;
-  // En live, el audio NO manda la boca
   if (STATE.mode !== 'live') { requestAnimationFrame(medirAudio); return; }
 
   analyser.getByteTimeDomainData(dataArray);
@@ -1702,7 +1739,7 @@ function scheduleBlink() {
 }
 
 /* ============================================================
-   MOVIMIENTO (con zoom combinado)
+   MOVIMIENTO (con zoom por pose)
    ============================================================ */
 let phase = 0;
 let vibTargetX = 0, vibTargetY = 0;
@@ -1710,8 +1747,11 @@ let vibCurrentX = 0, vibCurrentY = 0;
 let lastVibUpdate = 0;
 let frozenTransform = 'translate3d(0,0,0) scale(1)';
 
+function currentEffectiveZoom() {
+  return effectiveZoom(STATE.poseId);
+}
 function buildTransform(offsetX, offsetY) {
-  return `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${STATE.zoom})`;
+  return `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${currentEffectiveZoom()})`;
 }
 function motionLoop(now) {
   now = now || performance.now();
@@ -1742,16 +1782,54 @@ function motionLoop(now) {
 /* ============================================================
    ZOOM UI
    ============================================================ */
-function applyZoom(value) {
-  STATE.zoom = Math.max(0.5, Math.min(3.0, value));
-  zoomSlider.value = Math.round(STATE.zoom * 100);
-  zoomLabel.textContent = Math.round(STATE.zoom * 100) + '%';
-  // No aplicamos aquí: motionLoop lo hará en el siguiente frame
+function clampZoom(v) {
+  return Math.max(0.5, Math.min(3.0, v));
+}
+function updateZoomUI() {
+  const z = currentEffectiveZoom();
+  zoomSlider.value = Math.round(z * 100);
+  zoomLabel.textContent = Math.round(z * 100) + '%';
+  zoomAllBtn.classList.toggle('active', STATE.zoomAllActive);
+  updateZoomInfo();
+}
+function updateZoomInfo() {
+  const overrides = Object.keys(STATE.poseZoom).length;
+  const cur = STATE.poseId;
+  const hasOverride = Object.prototype.hasOwnProperty.call(STATE.poseZoom, cur);
+  const curZoom = currentEffectiveZoom();
+  zoomInfo.textContent =
+    `Zoom global: ${Math.round(STATE.zoom * 100)}% · ` +
+    `Pose actual (${cur}): ${Math.round(curZoom * 100)}%` +
+    (hasOverride ? ' · 🔒 override' : '') +
+    ` · Overrides activos: ${overrides}`;
+  zoomInfo.classList.remove('empty');
+}
+function applyZoomToTarget(newZoom) {
+  newZoom = clampZoom(newZoom);
+  if (STATE.zoomAllActive) {
+    STATE.zoom = newZoom;
+  } else {
+    STATE.poseZoom[STATE.poseId] = newZoom;
+  }
+  updateZoomUI();
   scheduleSave();
 }
-zoomSlider.addEventListener('input', e => applyZoom(+e.target.value / 100));
-$('zoom-in').addEventListener('click', () => applyZoom(STATE.zoom + 0.1));
-$('zoom-out').addEventListener('click', () => applyZoom(STATE.zoom - 0.1));
+zoomSlider.addEventListener('input', e => applyZoomToTarget(+e.target.value / 100));
+$('zoom-in').addEventListener('click', () => applyZoomToTarget(currentEffectiveZoom() + 0.05));
+$('zoom-out').addEventListener('click', () => applyZoomToTarget(currentEffectiveZoom() - 0.05));
+zoomAllBtn.addEventListener('click', () => {
+  STATE.zoomAllActive = !STATE.zoomAllActive;
+  updateZoomUI();
+  scheduleSave();
+});
+
+$('btn-clear-pose-zoom').addEventListener('click', () => {
+  if (!confirm('¿Borrar todos los zooms individuales por pose?')) return;
+  STATE.poseZoom = {};
+  updateZoomUI();
+  scheduleSave();
+  showHint('Zooms individuales borrados');
+});
 
 /* ============================================================
    AJUSTES
@@ -1759,6 +1837,7 @@ $('zoom-out').addEventListener('click', () => applyZoom(STATE.zoom - 0.1));
 function openSettings() {
   STATE.settingsOpen = true;
   overlaySettings.classList.add('open');
+  updateZoomInfo();
 }
 function closeSettings() {
   STATE.settingsOpen = false;
@@ -1780,6 +1859,7 @@ document.querySelectorAll('.avatar-opt').forEach(btn => {
     STATE.imageStatus = {};
     actualizarAvatar();
     updatePosesInfo();
+    updateZoomInfo();
     scheduleSave();
     preloadAllPoses(STATE.avatar).then(() => {
       updatePosesInfo();
@@ -1865,6 +1945,8 @@ $('btn-wipe').addEventListener('click', async () => {
   STATE.avatar = 1;
   STATE.poseId = 'normal';
   STATE.zoom = 1.0;
+  STATE.poseZoom = {};
+  STATE.zoomAllActive = true;
   STATE.avatarShadow = false;
   STATE.imageCache = {};
   STATE.imageStatus = {};
@@ -1873,7 +1955,7 @@ $('btn-wipe').addEventListener('click', async () => {
   });
   avatarImg.classList.remove('with-shadow');
   $('avatar-shadow').checked = false;
-  applyZoom(1.0);
+  updateZoomUI();
   actualizarAvatar();
   updateStatusRow();
   showHint('Todo borrado');
@@ -1927,13 +2009,12 @@ async function init() {
   $('avatar-shadow').checked = STATE.avatarShadow;
   avatarImg.classList.toggle('with-shadow', STATE.avatarShadow);
 
-  applyZoom(STATE.zoom);
+  updateZoomUI();
 
   document.querySelectorAll('.avatar-opt').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.avatar,10) === STATE.avatar);
   });
 
-  // Modo inicial siempre pregrabado
   STATE.mode = 'prerecorded';
   modeBadge.textContent = '📼 PREGRABADO';
   modeBadge.classList.remove('live');
